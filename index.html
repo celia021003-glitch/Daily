@@ -350,8 +350,9 @@ function renderToday(){
   const photoCard=card('拍照记录',`
     <div style="display:flex;gap:8px">
       <label style="${BS(C.p,'flex:1;text-align:center;cursor:pointer;display:block')}">📷 拍照<input type="file" accept="image/*" capture="environment" id="capBtn" style="display:none"></label>
-      <label style="${BS(C.g,'flex:1;text-align:center;cursor:pointer;display:block')}">🖼 相册<input type="file" accept="image/*" multiple id="albBtn" style="display:none"></label>
+      <label style="${BS(C.g,'flex:1;text-align:center;cursor:pointer;display:block')}">🖼 相册<input type="file" accept="image/*" id="albBtn" style="display:none"></label>
     </div>
+    <div style="font-size:11px;color:${C.faint};text-align:center;margin-top:6px">选一张照片后可 AI 识别 · 如需批量存图请多次选择</div>
     ${photoPrev?`<img src="${photoPrev}" style="width:100%;max-height:220px;object-fit:cover;border-radius:12px;margin-top:12px">`:''}
     ${photoActions}
     ${photoImgs?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">${photoImgs}</div>`:''}
@@ -807,12 +808,8 @@ function bindEvents(){
     const el=ev.target;
     if(el.id==='capBtn'||el.id==='albBtn'){
       if(!el.files||!el.files.length)return;
-      if(el.id==='capBtn'){
-        try{const u=await compressFile(el.files[0]);photoPrev=u;el.value='';render()}catch(err){console.error(err)}
-      }else{
-        const ids=[];for(const f of el.files){try{const u=await compressFile(f);const pid=await storeImg(u);ids.push(pid)}catch(err){}}
-        el.value='';if(ids.length)mutE(e=>{e.photos=[...e.photos,...ids]})
-      }
+      // 拍照和相册都走预览流程，这样 AI 识别按钮才会出现
+      try{const u=await compressFile(el.files[0]);photoPrev=u;el.value='';render()}catch(err){console.error(err)}
       return
     }
     if(el.id==='jImgBtn'){if(!el.files||!el.files.length)return;const urls=[];for(const f of el.files){try{const u=await compressFile(f);urls.push(u)}catch(err){}}el.value='';jImgs=[...jImgs,...urls];render();return}
