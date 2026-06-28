@@ -83,14 +83,19 @@ const dictDB={
   set:(w,v)=>openDB().then(db=>new Promise(res=>{const r=db.transaction('dict','readwrite').objectStore('dict').put(v,w);r.onsuccess=()=>res(true);r.onerror=()=>res(false)})).catch(()=>false),
   count:()=>openDB().then(db=>new Promise(res=>{const r=db.transaction('dict').objectStore('dict').count();r.onsuccess=()=>res(r.result||0);r.onerror=()=>res(0)})).catch(()=>0),
   clear:()=>openDB().then(db=>new Promise(res=>{const r=db.transaction('dict','readwrite').objectStore('dict').clear();r.onsuccess=()=>res(true);r.onerror=()=>res(false)})).catch(()=>false),
-  putBatch:async(entries)=>{
-    const db=await openDB();
-    return new Promise(res=>{
-      const tx=db.transaction('dict','readwrite');const os=tx.objectStore('dict');
+  putBatch:(entries)=>openDB().then(db=>new Promise((res,rej)=>{
+    let tx;
+    try{tx=db.transaction('dict','readwrite')}catch(err){rej(err);return}
+    const os=tx.objectStore('dict');
+    let done=false;
+    const timer=setTimeout(()=>{if(!done){done=true;rej(new Error('写入超时（10秒）。可能是浏览器存储被限制。'))}},10000);
+    tx.oncomplete=()=>{if(!done){done=true;clearTimeout(timer);res(true)}};
+    tx.onerror=()=>{if(!done){done=true;clearTimeout(timer);rej(tx.error||new Error('事务失败'))}};
+    tx.onabort=()=>{if(!done){done=true;clearTimeout(timer);rej(tx.error||new Error('事务中止'))}};
+    try{
       for(const[w,v]of entries)os.put(v,w);
-      tx.oncomplete=()=>res(true);tx.onerror=()=>res(false);
-    });
-  }
+    }catch(err){if(!done){done=true;clearTimeout(timer);rej(err)}}
+  }))
 };
 const idb={
   get:k=>openDB().then(db=>new Promise(res=>{const r=db.transaction('kv').objectStore('kv').get(k);r.onsuccess=()=>res(r.result??null);r.onerror=()=>res(null)})).catch(()=>ls.get(k)),
@@ -751,11 +756,26 @@ async function downloadDict(){
     vDictProgress=60;render();
     // 批量写入 IndexedDB
     const entries=Object.entries(data);
-    const batchSize=2000;
+    const batchSize=5000;
+    function updateProgress(pct){
+      vDictProgress=pct;
+      // 只更新进度条，不触发完整 render（避免干扰 IndexedDB 事务）
+      const bar=document.querySelector('[data-dictbar]');
+      const txt=document.querySelector('[data-dicttxt]');
+      if(bar)bar.style.width=pct+'%';
+      if(txt)txt.textContent='下载中… '+pct+'%';
+    }
     for(let i=0;i<entries.length;i+=batchSize){
       const slice=entries.slice(i,i+batchSize);
-      await dictDB.putBatch(slice);
-      vDictProgress=60+Math.round((i/entries.length)*40);render();
+      try{
+        await dictDB.putBatch(slice);
+      }catch(err){
+        vDictLoading=false;vDictProgress=0;
+        alert('词典写入失败（第'+(Math.floor(i/batchSize)+1)+'批）：\n'+(err&&err.message||err)+'\n\n可能是浏览器隐私/无痕模式，或存储空间不足。请用普通窗口打开，清理站点数据后重试。');
+        render();return;
+      }
+      updateProgress(60+Math.round((i/entries.length)*40));
+      await new Promise(r=>setTimeout(r,0));
     }
     S.dictReady=true;
     vDictLoading=false;vDictProgress=100;
@@ -809,9 +829,9 @@ function renderDictNotReady(){
       </p>
       ${vDictLoading?`
         <div style="background:${C.pS};border-radius:12px;padding:16px">
-          <div style="font-size:13px;color:${C.p};margin-bottom:8px">下载中… ${vDictProgress}%</div>
+          <div data-dicttxt style="font-size:13px;color:${C.p};margin-bottom:8px">下载中… ${vDictProgress}%</div>
           <div style="height:8px;background:${C.line};border-radius:4px;overflow:hidden">
-            <div style="width:${vDictProgress}%;height:100%;background:${C.p};transition:width .3s"></div>
+            <div data-dictbar style="width:${vDictProgress}%;height:100%;background:${C.p};transition:width .3s"></div>
           </div>
           <div style="font-size:11px;color:${C.faint};margin-top:8px">请勿关闭页面，约30秒…</div>
         </div>
