@@ -78,25 +78,36 @@ function openDB(){
     r.onerror=()=>rej(r.error)
   });
 }
+// 词典：整体存储（一个 key 存全部），避免 6 万次写入卡死
+let _dictMem=null; // 内存中的词典对象
 const dictDB={
-  get:w=>openDB().then(db=>new Promise(res=>{const r=db.transaction('dict').objectStore('dict').get(w);r.onsuccess=()=>res(r.result??null);r.onerror=()=>res(null)})).catch(()=>null),
-  set:(w,v)=>openDB().then(db=>new Promise(res=>{const r=db.transaction('dict','readwrite').objectStore('dict').put(v,w);r.onsuccess=()=>res(true);r.onerror=()=>res(false)})).catch(()=>false),
-  count:()=>openDB().then(db=>new Promise(res=>{const r=db.transaction('dict').objectStore('dict').count();r.onsuccess=()=>res(r.result||0);r.onerror=()=>res(0)})).catch(()=>0),
-  clear:()=>openDB().then(db=>new Promise(res=>{const r=db.transaction('dict','readwrite').objectStore('dict').clear();r.onsuccess=()=>res(true);r.onerror=()=>res(false)})).catch(()=>false),
-  putBatch:(entries)=>openDB().then(db=>new Promise((res,rej)=>{
-    let tx;
-    try{tx=db.transaction('dict','readwrite')}catch(err){rej(err);return}
-    const os=tx.objectStore('dict');
-    let done=false;
-    const timer=setTimeout(()=>{if(!done){done=true;rej(new Error('写入超时（10秒）。可能是浏览器存储被限制。'))}},10000);
-    tx.oncomplete=()=>{if(!done){done=true;clearTimeout(timer);res(true)}};
-    tx.onerror=()=>{if(!done){done=true;clearTimeout(timer);rej(tx.error||new Error('事务失败'))}};
-    tx.onabort=()=>{if(!done){done=true;clearTimeout(timer);rej(tx.error||new Error('事务中止'))}};
-    try{
-      for(const[w,v]of entries)os.put(v,w);
-    }catch(err){if(!done){done=true;clearTimeout(timer);rej(err)}}
-  }))
+  // 存整个词典对象到一个 key（一次写入，瞬间完成）
+  saveAll:(obj)=>openDB().then(db=>new Promise((res,rej)=>{
+    let tx;try{tx=db.transaction('dict','readwrite')}catch(err){rej(err);return}
+    tx.oncomplete=()=>res(true);
+    tx.onerror=()=>rej(tx.error||new Error('写入失败'));
+    tx.onabort=()=>rej(tx.error||new Error('写入中止'));
+    try{tx.objectStore('dict').put(obj,'__full__')}catch(err){rej(err)}
+  })),
+  // 读出整个词典对象
+  loadAll:()=>openDB().then(db=>new Promise(res=>{
+    const r=db.transaction('dict').objectStore('dict').get('__full__');
+    r.onsuccess=()=>res(r.result||null);r.onerror=()=>res(null)
+  })).catch(()=>null),
+  // 检查是否已存词典
+  has:()=>openDB().then(db=>new Promise(res=>{
+    const r=db.transaction('dict').objectStore('dict').getKey?db.transaction('dict').objectStore('dict').count('__full__'):db.transaction('dict').objectStore('dict').count();
+    r.onsuccess=()=>res(r.result>0);r.onerror=()=>res(false)
+  })).catch(()=>false),
+  clear:()=>openDB().then(db=>new Promise(res=>{const r=db.transaction('dict','readwrite').objectStore('dict').clear();r.onsuccess=()=>res(true);r.onerror=()=>res(false)})).catch(()=>false)
 };
+// 确保词典已加载到内存
+async function ensureDictMem(){
+  if(_dictMem)return _dictMem;
+  const obj=await dictDB.loadAll();
+  if(obj){_dictMem=obj;return obj}
+  return null;
+}
 const idb={
   get:k=>openDB().then(db=>new Promise(res=>{const r=db.transaction('kv').objectStore('kv').get(k);r.onsuccess=()=>res(r.result??null);r.onerror=()=>res(null)})).catch(()=>ls.get(k)),
   set:(k,v)=>openDB().then(db=>new Promise(res=>{const r=db.transaction('kv','readwrite').objectStore('kv').put(v,k);r.onsuccess=()=>res(true);r.onerror=()=>res(false)})).catch(()=>ls.set(k,v)),
@@ -276,7 +287,7 @@ function mutE(fn){
 }
 async function loadState(){
   try{const v=await idb.get(SKEY);if(v){const d=JSON.parse(v);S={...S,...d,period:d.period||{days:{},syms:{}},expenses:d.expenses||[],frags:d.frags||[],apiKey:d.apiKey||'',wunit:d.wunit||'kg',billTags:(d.billTags&&d.billTags.length)?d.billTags:['必需','想要','请客','囤货'],listMode:d.listMode||'fold',vocab:d.vocab||[],vocabNotes:d.vocabNotes||{},vocabAi:d.vocabAi||{},vocabSynonyms:d.vocabSynonyms||{},aiUsage:d.aiUsage||{count:0,month:''},reviewHistory:d.reviewHistory||{}}}}catch(e){}
-  try{const dictCount=await dictDB.count();S.dictReady=dictCount>1000}catch(e){}
+  try{const has=await dictDB.has();S.dictReady=has}catch(e){}
   wIn=getE().weight!=null?String(kg2disp(getE().weight)):'';
   render()
 }
@@ -700,19 +711,19 @@ function renderList(){
 const DICT_URL='./ecdict.json';
 const DICT_VERSION='v1';
 
-// 查词：先查 IndexedDB 词典，找不到尝试简单转小写/去复数
+// 查词：从内存词典查询，找不到尝试去复数/时态后缀
 async function lookupWord(w){
   if(!w)return null;
   const word=w.trim().toLowerCase();
   if(!word)return null;
-  let r=await dictDB.get(word);
-  if(r)return r;
+  const dict=await ensureDictMem();
+  if(!dict)return null;
+  if(dict[word])return dict[word];
   // 简单回退：去掉常见后缀
   for(const suf of ['s','es','ed','ing','ly','er','est']){
     if(word.endsWith(suf)){
       const base=word.slice(0,-suf.length);
-      r=await dictDB.get(base);
-      if(r)return {...r,_baseForm:base,_inflected:word};
+      if(dict[base])return {...dict[base],_baseForm:base,_inflected:word};
     }
   }
   return null;
@@ -735,8 +746,11 @@ async function downloadDict(){
   if(vDictLoading)return;
   vDictLoading=true;vDictProgress=0;render();
   try{
+    // 先清掉可能残留的旧数据
+    await dictDB.clear();_dictMem=null;
+    // 1. 下载（0-50%）
     const res=await fetch(DICT_URL);
-    if(!res.ok)throw new Error('词典文件未找到，请确认 ecdict.json 已上传到 GitHub 仓库根目录');
+    if(!res.ok)throw new Error('词典文件未找到（HTTP '+res.status+'）。请确认 ecdict.json 已上传到 GitHub 仓库根目录。');
     const total=Number(res.headers.get('content-length'))||0;
     const reader=res.body.getReader();
     let received=0,chunks=[];
@@ -744,48 +758,42 @@ async function downloadDict(){
       const{done,value}=await reader.read();
       if(done)break;
       chunks.push(value);received+=value.length;
-      if(total){vDictProgress=Math.round(received/total*50);render()}
+      if(total){setDictProgress(Math.round(received/total*50))}
     }
-    // 合并 chunks
-    const blob=new Blob(chunks);
+    // 2. 合并 + 解析（50-70%）
+    setDictProgress(55);
+    const blob=new Blob(chunks);chunks=null;
     const text=await blob.text();
-    chunks=null;
-    vDictProgress=55;render();
-    // 解析 JSON（格式：{"word": {...}, "word2": {...}}）
+    await tick();
+    setDictProgress(65);
+    await tick();
     const data=JSON.parse(text);
-    vDictProgress=60;render();
-    // 批量写入 IndexedDB
-    const entries=Object.entries(data);
-    const batchSize=5000;
-    function updateProgress(pct){
-      vDictProgress=pct;
-      // 只更新进度条，不触发完整 render（避免干扰 IndexedDB 事务）
-      const bar=document.querySelector('[data-dictbar]');
-      const txt=document.querySelector('[data-dicttxt]');
-      if(bar)bar.style.width=pct+'%';
-      if(txt)txt.textContent='下载中… '+pct+'%';
-    }
-    for(let i=0;i<entries.length;i+=batchSize){
-      const slice=entries.slice(i,i+batchSize);
-      try{
-        await dictDB.putBatch(slice);
-      }catch(err){
-        vDictLoading=false;vDictProgress=0;
-        alert('词典写入失败（第'+(Math.floor(i/batchSize)+1)+'批）：\n'+(err&&err.message||err)+'\n\n可能是浏览器隐私/无痕模式，或存储空间不足。请用普通窗口打开，清理站点数据后重试。');
-        render();return;
-      }
-      updateProgress(60+Math.round((i/entries.length)*40));
-      await new Promise(r=>setTimeout(r,0));
-    }
+    setDictProgress(75);
+    await tick();
+    // 3. 一次性存入数据库（75-95%）—— 整个对象作为一个值，瞬间完成
+    await dictDB.saveAll(data);
+    setDictProgress(95);
+    // 4. 加载到内存
+    _dictMem=data;
+    setDictProgress(100);
     S.dictReady=true;
-    vDictLoading=false;vDictProgress=100;
+    vDictLoading=false;
     save({...S});
   }catch(err){
     vDictLoading=false;vDictProgress=0;
-    alert('词典下载失败：'+err.message+'\n\n请确认 ecdict.json 已上传到 GitHub 仓库。');
+    alert('词典下载失败：\n'+(err&&err.message||err)+'\n\n如果是无痕/隐私模式，请用普通窗口打开。');
     render();
   }
 }
+// 进度条更新（不触发完整 render，避免干扰）
+function setDictProgress(pct){
+  vDictProgress=pct;
+  const bar=document.querySelector('[data-dictbar]');
+  const txt=document.querySelector('[data-dicttxt]');
+  if(bar)bar.style.width=pct+'%';
+  if(txt)txt.textContent='处理中… '+pct+'%';
+}
+function tick(){return new Promise(r=>setTimeout(r,16))}
 
 // 添加单词到生词本
 async function addVocab(word){
