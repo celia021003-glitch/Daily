@@ -52,6 +52,8 @@ const FLOW={light:{c:'#F0B6C0',t:'轻'},medium:{c:'#E18599',t:'中'},heavy:{c:'#
 const SYMS=['痛经','乏力','情绪','腹胀','头痛','嗜睡'];
 const CATS=[['餐饮','🍜'],['交通','🚇'],['购物','🛍️'],['学习','📚'],['居家','🏠'],['娱乐','🎮'],['其他','✨']];
 const CURS=['$','A$','¥','€','£'];
+const LIST_ICONS=['📝','🛒','🎒','📚','🧳','🍳','💊','🎁','🌱','🏃','🎬','🎵','🐱','✈️','🛁','🧺','💡','⭐️'];
+const WUNITS=['kg','斤'];
 
 // ═══════════════════════ INDEXEDDB + localStorage 双保险 ═══════════════════════
 let _db=null;
@@ -75,20 +77,29 @@ const idb={
 };
 
 // ═══════════════════════ STATE ═══════════════════════
-let S={entries:{},pantry:[],wishlist:[],lists:[],journal:[],frags:[],period:{days:{},syms:{}},expenses:[],theme:'mist',accent:null,accentA:0.13,bgc:null,cur:'$',apiKey:''};
+let S={entries:{},pantry:[],wishlist:[],lists:[],journal:[],frags:[],period:{days:{},syms:{}},expenses:[],theme:'mist',accent:null,accentA:0.13,bgc:null,cur:'$',apiKey:'',wunit:'kg',billTags:['必需','想要','请客','囤货'],listMode:'fold',vocab:[],vocabNotes:{},vocabAi:{},vocabSynonyms:{},aiUsage:{count:0,month:''},reviewHistory:{},dictReady:false};
 let IC={};
 let TAB='today',DATE=dstr(new Date());
 let wIn='',mTxt='',mType='早餐';
-let pN='',pQ='',pU='个',pE='';
+let pN='',pQ='',pU='个',pE='',pUcustom='';
 let wiTxt='';
-let nList='',liIn={};
+let nList='',nListIcon='📝',liIn={};
+let listCollapse={},dragListId=null;
 let jTxt='',jMood='✨',jFont='kai',jHi=null,jTape=TAPES[0],jSt=null,jImgs=[];
 let meTxt='',meImgs=[],composing=false,readFrag=null;
-let eAmt='',eCat='餐饮',eNote='',eDate=dstr(new Date()),eMon=dstr(new Date()).slice(0,7);
+let eAmt='',eCat='餐饮',eNote='',eDate=dstr(new Date()),eMon=dstr(new Date()).slice(0,7),eTag='',eImg='';
+let eSearch='',editExp=null,billCollapse={};
 let photoPrev='';
+let aiDraft=null;
 let showSett=false;
 let sHsl={h:200,s:50,l:55};
-let aiLoading=false;   // ← 新增：AI 识别加载状态
+let aiLoading=false;
+// 单词模块
+let vSearch='',vView='all',vSort='added',vDetail=null,vAddInput='',vDictLoading=false,vDictProgress=0;
+// 复习系统
+let reviewMode=null,reviewQueue=[],reviewIdx=0,reviewFlipped=false,reviewInput='',reviewStats={correct:0,hard:0,wrong:0},reviewDone=false,_txStart=null;
+// 统计/导入弹层
+let showStats=false,showBulk=false,bulkText='';
 let C={};
 
 // ═══════════════════════ UTILS ═══════════════════════
@@ -134,6 +145,10 @@ function resolveC(){
   if(S.accent){t.p=S.accent;t.pS=S.accent+aHex(S.accentA??0.13)}
   return t
 }
+// 体重单位：内部统一存 kg，显示按 S.wunit 换算
+function wUnit(){return S.wunit||'kg'}
+function kg2disp(kg){if(kg==null)return null;return wUnit()==='斤'?Math.round(kg*2*10)/10:kg}
+function disp2kg(v){if(v==null||v==='')return null;const n=parseFloat(v);if(isNaN(n))return null;return wUnit()==='斤'?Math.round(n/2*10)/10:Math.round(n*10)/10}
 function getE(d){d=d||DATE;return S.entries[d]||{weight:null,meals:[],water:0,photos:[]}}
 function wSer(){return Object.keys(S.entries).filter(d=>S.entries[d].weight!=null).sort().map(d=>({d,w:S.entries[d].weight,l:d.slice(5)}))}
 function cycInfo(){
@@ -202,34 +217,20 @@ async function doAiRec(){
     if(json.error)throw new Error(json.error.message);
     const text=json.content&&json.content[0]&&json.content[0].text||'';
     const lines=text.split('\n').map(l=>l.trim()).filter(l=>l.includes('|'));
-    const newMeals=[];
-    let totalCal='';
+    // 改为生成可编辑草稿，而不是直接写入
+    const items=[];
     for(const line of lines){
-      const parts=line.split('|').map(s=>s.trim());
+      const parts=line.split('|').map(x=>x.trim());
       const name=parts[0]||'';
-      if(!name)continue;
-      if(name.includes('合计')){
-        totalCal=(parts[2]||parts[1]||'').replace(/[^\d]/g,'');
-        continue
-      }
-      const qty=parts[1]||'';
-      const cal=parts[2]||'';
-      const txt=(name+(qty?' '+qty:'')+(cal?' ('+cal+')':'')).trim();
-      newMeals.push({id:Date.now()+Math.floor(Math.random()*9999),type:mType,text:txt})
+      if(!name||name.includes('合计'))continue;
+      items.push({name,qty:parts[1]||'',cal:(parts[2]||'').replace(/[^\d]/g,'')})
     }
-    if(!newMeals.length){
+    if(!items.length){
       alert('未能识别到食物，请重试，或确认图片中有清晰的食物。');
       aiLoading=false;render();return
     }
-    if(totalCal){
-      newMeals.push({id:Date.now()+Math.floor(Math.random()*9999),type:mType,text:'📊 本餐合计约 '+totalCal+' kcal'})
-    }
-    const pid=await storeImg(photoPrev);
-    photoPrev='';aiLoading=false;
-    mutE(en=>{
-      if(pid)en.photos=[...en.photos,pid];
-      en.meals=[...en.meals,...newMeals]
-    })
+    aiDraft={type:mType,items,photo:photoPrev};
+    photoPrev='';aiLoading=false;render()
   }catch(err){
     console.error(err);
     alert('AI 识别出错：'+(err.message||'网络错误，请检查 API Key 是否正确。'));
@@ -246,9 +247,64 @@ function mutE(fn){
   fn(e);n.entries[DATE]=e;save(n)
 }
 async function loadState(){
-  try{const v=await idb.get(SKEY);if(v){const d=JSON.parse(v);S={...S,...d,period:d.period||{days:{},syms:{}},expenses:d.expenses||[],frags:d.frags||[],apiKey:d.apiKey||''}}}catch(e){}
-  wIn=getE().weight!=null?String(getE().weight):'';
+  try{const v=await idb.get(SKEY);if(v){const d=JSON.parse(v);S={...S,...d,period:d.period||{days:{},syms:{}},expenses:d.expenses||[],frags:d.frags||[],apiKey:d.apiKey||'',wunit:d.wunit||'kg',billTags:(d.billTags&&d.billTags.length)?d.billTags:['必需','想要','请客','囤货'],listMode:d.listMode||'fold',vocab:d.vocab||[],vocabNotes:d.vocabNotes||{},vocabAi:d.vocabAi||{},vocabSynonyms:d.vocabSynonyms||{},aiUsage:d.aiUsage||{count:0,month:''},reviewHistory:d.reviewHistory||{}}}}catch(e){}
+  try{const dictCount=await dictDB.count();S.dictReady=dictCount>1000}catch(e){}
+  wIn=getE().weight!=null?String(kg2disp(getE().weight)):'';
   render()
+}
+
+// ═══════════════════════ AI 草稿确认编辑界面 ═══════════════════════
+function renderAiDraft(){
+  if(!aiDraft)return '';
+  const rows=aiDraft.items.map((it,i)=>`
+    <div style="display:flex;gap:6px;align-items:center;padding:8px 0;border-top:1px solid ${C.line}">
+      <input value="${e(it.name)}" data-a="draftEdit" data-id="${i}" data-f="name" placeholder="食物" style="${IS('flex:2;padding:7px 9px;font-size:13px')}">
+      <input value="${e(it.qty)}" data-a="draftEdit" data-id="${i}" data-f="qty" placeholder="分量" style="${IS('flex:1.4;padding:7px 9px;font-size:13px;min-width:0')}">
+      <input value="${e(it.cal)}" data-a="draftEdit" data-id="${i}" data-f="cal" inputmode="numeric" placeholder="kcal" style="${IS('flex:1;padding:7px 9px;font-size:13px;min-width:0')}">
+      <button data-a="draftDel" data-id="${i}" style="background:none;border:none;color:${C.faint};font-size:18px;cursor:pointer;flex-shrink:0">×</button>
+    </div>`).join('');
+  const total=aiDraft.items.reduce((sum,it)=>sum+(parseInt(it.cal)||0),0);
+  return `<div style="position:fixed;inset:0;z-index:40;background:rgba(20,18,30,.45);backdrop-filter:blur(5px);display:flex;align-items:flex-end;justify-content:center">
+    <div style="width:100%;max-width:560px;max-height:90vh;overflow-y:auto;background:${C.bg};border-top-left-radius:24px;border-top-right-radius:24px;padding:10px 18px 32px;animation:su .28s ease;box-sizing:border-box">
+      <div style="width:40px;height:4px;border-radius:2px;background:${C.line};margin:0 auto 14px"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <h2 style="font-family:${SR};font-size:19px">🤖 识别结果 · 可修改</h2>
+        <button data-a="draftCancel" style="background:none;border:none;color:${C.muted};font-size:22px;cursor:pointer">×</button>
+      </div>
+      <p style="font-size:12px;color:${C.muted};margin-bottom:10px">确认无误后再添加。分量/热量都是估算，可手动改。</p>
+      <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+        ${MTYPES.map(t=>pill(aiDraft.type===t,C.g,C.gS,t,'draftType')).join('')}
+      </div>
+      <div style="background:${C.card};border-radius:14px;padding:6px 14px 12px">
+        <div style="display:flex;gap:6px;font-size:11px;color:${C.faint};padding-top:8px">
+          <span style="flex:2">食物</span><span style="flex:1.4">分量</span><span style="flex:1">热量</span><span style="width:18px"></span>
+        </div>
+        ${rows}
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:10px;border-top:2px solid ${C.line}">
+          <span style="font-size:13px;color:${C.muted}">合计约</span>
+          <span style="font-family:${SR};font-size:20px;font-weight:600;color:${C.p}">${total} kcal</span>
+        </div>
+      </div>
+      <button data-a="draftAddItem" style="${BS(C.line,'width:100%;color:'+C.muted+';margin-top:10px')}">＋ 手动加一项</button>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button data-a="draftCancel" style="${BS(C.line,'flex:1;color:'+C.muted)}">取消</button>
+        <button data-a="draftConfirm" style="${BS(C.p,'flex:2;font-weight:600')}">✓ 确认添加到今天</button>
+      </div>
+    </div>
+  </div>`
+}
+async function confirmDraft(){
+  if(!aiDraft)return;
+  const meals=aiDraft.items.filter(it=>it.name.trim()).map(it=>{
+    const txt=(it.name+(it.qty?' '+it.qty:'')+(it.cal?' ('+it.cal+'kcal)':'')).trim();
+    return {id:Date.now()+Math.floor(Math.random()*99999),type:aiDraft.type,text:txt}
+  });
+  const total=aiDraft.items.reduce((sum,it)=>sum+(parseInt(it.cal)||0),0);
+  if(total>0)meals.push({id:Date.now()+Math.floor(Math.random()*99999),type:aiDraft.type,text:'📊 本餐合计约 '+total+' kcal'});
+  let pid=null;
+  if(aiDraft.photo)pid=await storeImg(aiDraft.photo);
+  aiDraft=null;
+  mutE(en=>{if(pid)en.photos=[...en.photos,pid];en.meals=[...en.meals,...meals]})
 }
 
 // ═══════════════════════ HTML HELPERS ═══════════════════════
@@ -274,8 +330,8 @@ function renderChart(ser){
     ${[0,.5,1].map(t=>`<line x1="${pad}" x2="${W-pad}" y1="${pad+t*(H-pad*2)}" y2="${pad+t*(H-pad*2)}" stroke="${C.line}" stroke-width="1"/>`).join('')}
     <polyline points="${pts}" fill="none" stroke="${C.p}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
     ${ser.map((s,i)=>`<circle cx="${xx(i)}" cy="${yy(s.w)}" r="3.5" fill="${C.p}"/>`).join('')}
-    <text x="2" y="${yy(mx)+4}" font-size="11" fill="${C.muted}">${mx}</text>
-    <text x="2" y="${yy(mn)+4}" font-size="11" fill="${C.muted}">${mn}</text>
+    <text x="2" y="${yy(mx)+4}" font-size="11" fill="${C.muted}">${kg2disp(mx)}</text>
+    <text x="2" y="${yy(mn)+4}" font-size="11" fill="${C.muted}">${kg2disp(mn)}</text>
     <text x="${xx(0)}" y="${H-3}" font-size="11" fill="${C.muted}">${ser[0].l}</text>
     <text x="${xx(n-1)}" y="${H-3}" font-size="11" fill="${C.muted}" text-anchor="end">${ser[n-1].l}</text>
   </svg>`
@@ -288,8 +344,8 @@ function renderToday(){
   if(ser.length>=2){const la=ser[ser.length-1],cut=shiftD(la.d,-7),ear=ser.filter(s=>s.d<=cut);const base=ear.length?ear[ear.length-1]:ser[0];d7=Math.round((la.w-base.w)*10)/10}
   const d7c=d7==null?C.muted:d7>0?C.w:C.g,d7b=d7==null?C.line:d7>0?C.wS:C.gS;
   const stats=`<div style="display:flex;gap:12px;margin-bottom:16px">
-    ${statBox('当前体重',last?last.w+'kg':'—',C.p,C.pS)}
-    ${statBox('近7天',d7==null?'—':(d7>0?'+':'')+d7+(d7==null?'':'kg'),d7c,d7b)}
+    ${statBox('当前体重',last?kg2disp(last.w)+wUnit():'—',C.p,C.pS)}
+    ${statBox('近7天',d7==null?'—':(d7>0?'+':'')+(wUnit()==='斤'?Math.round(d7*2*10)/10:d7)+wUnit(),d7c,d7b)}
     ${statBox('今日水',(ent.water||0)+'杯',C.g,C.gS)}
   </div>`;
   const chartCard=card('体重趋势',renderChart(ser));
@@ -303,8 +359,8 @@ function renderToday(){
     <button data-a="nextDay" ${DATE>=td?'disabled':''} style="width:38px;height:38px;border-radius:12px;border:1px solid ${C.line};background:${C.card};color:${DATE>=td?C.faint:C.ink};font-size:22px;cursor:pointer;line-height:1">›</button>
   </div>`;
   const wCard=card('今日体重',`<div style="display:flex;gap:8px;align-items:center">
-    <input id="wIn" value="${e(wIn)}" inputmode="decimal" placeholder="例如 55.2" style="${IS('flex:1')}">
-    <span style="color:${C.muted};font-size:14px;flex-shrink:0">kg</span>
+    <input id="wIn" value="${e(wIn)}" inputmode="decimal" placeholder="${wUnit()==='斤'?'例如 110':'例如 55.2'}" style="${IS('flex:1')}">
+    <span style="color:${C.muted};font-size:14px;flex-shrink:0">${wUnit()}</span>
     <button data-a="saveW" style="${BS(C.p)}">保存</button>
   </div>`);
   const cups=Math.max(8,ent.water||0);
@@ -391,13 +447,14 @@ function renderFood(){
       </div>`:''}
       ${xbtn('delP',x.id)}
     </div>`}).join('');
-  const uOpts=UNITS.map(u=>`<option value="${u}" ${pU===u?'selected':''}>${u}</option>`).join('');
+  const uOpts=UNITS.concat(['自定义']).map(u=>`<option value="${u}" ${pU===u?'selected':''}>${u}</option>`).join('');
   const pCard=card('我的食材库',`
     <div style="display:flex;gap:6px;margin-bottom:8px">
       <input id="pN" value="${e(pN)}" placeholder="食材名" style="${IS('flex:2')}">
       <input id="pQ" value="${e(pQ)}" inputmode="decimal" placeholder="数量" style="${IS('flex:1;min-width:0')}">
-      <select id="pU" style="${IS('flex:0 0 60px;padding:10px 6px')}">${uOpts}</select>
+      <select id="pU" style="${IS('flex:0 0 64px;padding:10px 4px')}">${uOpts}</select>
     </div>
+    ${pU==='自定义'?`<input id="pUcustom" value="${e(pUcustom)}" placeholder="输入单位，如 袋、串、罐…" style="${IS('margin-bottom:8px')}">`:''}
     <div style="display:flex;gap:6px;margin-bottom:10px">
       <input id="pE" type="date" value="${e(pE)}" style="${IS('flex:1')}">
       <button data-a="addP" style="${BS(C.g)}">加入</button>
@@ -416,13 +473,48 @@ function renderFood(){
 }
 
 // ═══════════════════════ TAB: BILLS ═══════════════════════
+function catEmoji(n){return (CATS.find(x=>x[0]===n)||['','✨'])[1]}
+
+// 饼图（SVG donut）
+function donutChart(byCat,total){
+  const entries=Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
+  if(!entries.length||total<=0)return '';
+  const palette=[C.p,C.g,C.w,'#9A8CC4','#D9A36B','#7FA8A0','#C98AA8','#A0A0B0'];
+  const R=52,CC=64,SW=22;const circ=2*Math.PI*R;
+  let off=0;const segs=entries.map(([n,v],i)=>{
+    const frac=v/total;const len=frac*circ;const col=palette[i%palette.length];
+    const seg=`<circle cx="${CC}" cy="${CC}" r="${R}" fill="none" stroke="${col}" stroke-width="${SW}" stroke-dasharray="${len} ${circ-len}" stroke-dashoffset="${-off}" transform="rotate(-90 ${CC} ${CC})"/>`;
+    off+=len;return seg;
+  }).join('');
+  const legend=entries.map(([n,v],i)=>{const col=palette[i%palette.length];const pct=Math.round(v/total*100);return`<div style="display:flex;align-items:center;gap:6px;font-size:12px;margin:3px 0">
+    <span style="width:10px;height:10px;border-radius:3px;background:${col};flex-shrink:0"></span>
+    <span style="flex:1">${catEmoji(n)} ${e(n)}</span>
+    <span style="color:${C.muted}">${pct}%</span>
+  </div>`}).join('');
+  return`<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+    <svg width="128" height="128" viewBox="0 0 128 128" style="flex-shrink:0">
+      ${segs}
+      <text x="64" y="60" text-anchor="middle" font-size="11" fill="${C.muted}">合计</text>
+      <text x="64" y="78" text-anchor="middle" font-size="15" font-weight="600" fill="${C.ink}">${(S.cur||'$')}${total.toFixed(0)}</text>
+    </svg>
+    <div style="flex:1;min-width:140px">${legend}</div>
+  </div>`
+}
+
 function renderBills(){
   const cur=S.cur||'$';
+  if(editExp)return renderBills_normal(cur);  // 编辑弹层在主渲染挂载
+  return renderBills_normal(cur)
+}
+function renderBills_normal(cur){
   const cPills=CATS.map(([n,ic])=>pill(eCat===n,C.p,C.pS,ic+' '+n,'setECat',n)).join('');
+  const tagPills=(S.billTags||[]).map(t=>pill(eTag===t,C.g,C.gS,'#'+t,'setETag',t)).join('')
+    +`<button data-a="addBillTag" style="padding:5px 10px;border-radius:999px;border:1px dashed ${C.line};background:transparent;color:${C.faint};font-size:13px;cursor:pointer">＋标签</button>`;
   const calcBtns=['7','8','9','÷','4','5','6','×','1','2','3','−','.','0','⌫','+','C','='];
   const calcHTML=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:8px 0 10px">
     ${calcBtns.map(k=>`<button data-a="calcKey" data-v="${k}" style="height:36px;border-radius:10px;border:1px solid ${C.line};background:${k==='='?C.p:k==='C'?C.wS:C.card};color:${k==='='?'#fff':k==='C'?C.w:C.ink};font-size:15px;cursor:pointer">${k}</button>`).join('')}
   </div>`;
+  const eImgPrev=eImg?`<div style="position:relative;display:inline-block;margin-top:8px"><img src="${eImg}" style="width:72px;height:72px;object-fit:cover;border-radius:10px;display:block"><button data-a="clearEImg" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;border:none;background:rgba(0,0,0,.6);color:#fff;font-size:12px;cursor:pointer">×</button></div>`:'';
   const addCard=card('记一笔',`
     <div style="display:flex;gap:8px;margin-bottom:8px">
       <div style="${IS('flex:1;display:flex;align-items:center;gap:4px')}">
@@ -432,27 +524,22 @@ function renderBills(){
       <input id="eDate" type="date" value="${e(eDate)}" style="${IS('flex:0 0 130px')}">
     </div>
     ${calcHTML}
-    <div style="font-size:11px;color:${C.faint};margin:-2px 0 10px">支持输入表达式，如 18+6、120÷2，点 = 自动算出金额。</div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">${cPills}</div>
-    <div style="display:flex;gap:8px">
+    <div style="font-size:11px;color:${C.faint};margin:-2px 0 10px">支持表达式：18+6、120÷2，点 = 自动算出。</div>
+    <div style="font-size:12px;color:${C.muted};margin-bottom:6px">分类</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">${cPills}</div>
+    <div style="font-size:12px;color:${C.muted};margin-bottom:6px">标签（可选）</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">${tagPills}</div>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px">
       <input id="eNote" value="${e(eNote)}" placeholder="备注（可选）" style="${IS()}">
-      <button data-a="addE" style="${BS(C.p)}">记账</button>
+      <label style="${BS(C.g,'cursor:pointer;flex-shrink:0')}">📎<input type="file" accept="image/*" id="eImgBtn" style="display:none"></label>
     </div>
+    ${eImgPrev}
+    <button data-a="addE" style="${BS(C.p,'width:100%;margin-top:10px')}">记账</button>
   `);
+
   const monExp=S.expenses.filter(x=>x.date.slice(0,7)===eMon);
   const total=monExp.reduce((s,x)=>s+x.amount,0);
   const byCat={};monExp.forEach(x=>{byCat[x.cat]=(byCat[x.cat]||0)+x.amount});
-  const maxV=Math.max(1,...Object.values(byCat));
-  const catEmoji=n=>(CATS.find(x=>x[0]===n)||['','✨'])[1];
-  const barList=Object.entries(byCat).sort((a,b)=>b[1]-a[1]).map(([n,v])=>`
-    <div style="margin-bottom:10px">
-      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px">
-        <span>${catEmoji(n)} ${e(n)}</span><span style="color:${C.muted}">${cur}${v.toFixed(2)}</span>
-      </div>
-      <div style="height:8px;border-radius:4px;background:${C.line}">
-        <div style="width:${(v/maxV*100).toFixed(1)}%;height:100%;border-radius:4px;background:${C.p}"></div>
-      </div>
-    </div>`).join('');
   const summCard=card('',`
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
       <button data-a="prevMon" style="width:34px;height:34px;border-radius:10px;border:1px solid ${C.line};background:${C.card};color:${C.ink};font-size:20px;cursor:pointer;line-height:1">‹</button>
@@ -462,45 +549,776 @@ function renderBills(){
       </div>
       <button data-a="nextMon" ${eMon>=today().slice(0,7)?'disabled':''} style="width:34px;height:34px;border-radius:10px;border:1px solid ${C.line};background:${C.card};color:${eMon>=today().slice(0,7)?C.faint:C.ink};font-size:20px;cursor:pointer;line-height:1">›</button>
     </div>
-    ${barList||empty('这个月还没有账单。')}
+    ${Object.keys(byCat).length?donutChart(byCat,total):empty('这个月还没有账单。')}
   `);
-  const detail=monExp.length?card('明细',monExp.map(x=>`<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid ${C.line}">
-    <span style="font-size:18px">${catEmoji(x.cat)}</span>
-    <div style="flex:1"><div style="font-size:14px">${e(x.cat)}${x.note?' · '+e(x.note):''}</div>
-    <div style="font-size:11px;color:${C.faint}">${x.date.slice(5)}</div></div>
-    <span style="font-size:15px;font-weight:600">${cur}${x.amount.toFixed(2)}</span>
-    ${xbtn('delE',x.id)}
-  </div>`).join('')):'';
-  return addCard+summCard+detail
+
+  // 搜索 + 按日折叠明细
+  let list=monExp;
+  const kw=(eSearch||'').trim();
+  if(kw)list=list.filter(x=>(x.note||'').includes(kw)||x.cat.includes(kw)||(x.tag||'').includes(kw));
+  // 按日期分组
+  const byDay={};list.forEach(x=>{(byDay[x.date]=byDay[x.date]||[]).push(x)});
+  const days=Object.keys(byDay).sort().reverse();
+  const dayBlocks=days.map(day=>{
+    const items=byDay[day];const dayTotal=items.reduce((s,x)=>s+x.amount,0);
+    const collapsed=billCollapse[day];
+    const rows=collapsed?'':items.map(x=>`<div data-a="editE" data-id="${x.id}" style="display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid ${C.line};cursor:pointer">
+      ${x.img?`<img data-lid="${e(x.img)}" src="${IC[x.img]||''}" style="width:34px;height:34px;border-radius:8px;object-fit:cover;flex-shrink:0">`:`<span style="font-size:18px;width:34px;text-align:center">${catEmoji(x.cat)}</span>`}
+      <div style="flex:1;min-width:0"><div style="font-size:14px">${e(x.cat)}${x.note?' · '+e(x.note):''}${x.tag?` <span style="font-size:11px;color:${C.g};background:${C.gS};padding:1px 6px;border-radius:5px">#${e(x.tag)}</span>`:''}</div></div>
+      <span style="font-size:15px;font-weight:600;flex-shrink:0">${cur}${x.amount.toFixed(2)}</span>
+    </div>`).join('');
+    return`<div style="margin-bottom:6px">
+      <div data-a="toggleDay" data-id="${day}" style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;cursor:pointer">
+        <span style="font-size:13px;color:${C.muted};font-weight:600">${collapsed?'▸':'▾'} ${day.slice(5)} · ${items.length}笔</span>
+        <span style="font-size:13px;color:${C.p};font-weight:600">${cur}${dayTotal.toFixed(2)}</span>
+      </div>
+      ${rows}
+    </div>`
+  }).join('');
+  const detailCard=monExp.length?card('明细 · 点一笔可编辑',`
+    <input id="eSearch" value="${e(eSearch)}" placeholder="🔍 搜索备注、分类、标签…" style="${IS('margin-bottom:10px')}">
+    ${dayBlocks||empty('没有匹配的记录。')}
+  `):'';
+
+  return addCard+summCard+detailCard
+}
+
+// 编辑账单弹层
+function renderEditExp(){
+  if(!editExp)return '';
+  const x=editExp;const cur=S.cur||'$';
+  const cPills=CATS.map(([n,ic])=>`<button data-a="ee_cat" data-v="${n}" style="padding:5px 12px;border-radius:999px;border:none;cursor:pointer;font-size:13px;background:${x.cat===n?C.p:C.pS};color:${x.cat===n?'#fff':C.p}">${ic} ${n}</button>`).join('');
+  const tagPills=(S.billTags||[]).map(t=>`<button data-a="ee_tag" data-v="${t}" style="padding:5px 12px;border-radius:999px;border:none;cursor:pointer;font-size:13px;background:${x.tag===t?C.g:C.gS};color:${x.tag===t?'#fff':C.g}">#${t}</button>`).join('');
+  const imgPrev=x.img?`<div style="position:relative;display:inline-block;margin-top:8px"><img data-lid="${e(x.img)}" src="${IC[x.img]||''}" style="width:72px;height:72px;object-fit:cover;border-radius:10px;display:block"><button data-a="ee_clearImg" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;border:none;background:rgba(0,0,0,.6);color:#fff;font-size:12px;cursor:pointer">×</button></div>`:'';
+  return`<div style="position:fixed;inset:0;z-index:40;background:rgba(20,18,30,.45);backdrop-filter:blur(5px);display:flex;align-items:flex-end;justify-content:center">
+    <div style="width:100%;max-width:560px;max-height:90vh;overflow-y:auto;background:${C.bg};border-top-left-radius:24px;border-top-right-radius:24px;padding:10px 18px 32px;animation:su .28s ease;box-sizing:border-box">
+      <div style="width:40px;height:4px;border-radius:2px;background:${C.line};margin:0 auto 14px"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <h2 style="font-family:${SR};font-size:19px">编辑这笔</h2>
+        <button data-a="ee_cancel" style="background:none;border:none;color:${C.muted};font-size:22px;cursor:pointer">×</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <div style="${IS('flex:1;display:flex;align-items:center;gap:4px')}"><span style="color:${C.muted}">${cur}</span>
+          <input id="ee_amt" value="${x.amount}" inputmode="decimal" style="border:none;outline:none;background:none;flex:1;font-size:16px;color:${C.ink};width:100%"></div>
+        <input id="ee_date" type="date" value="${e(x.date)}" style="${IS('flex:0 0 130px')}">
+      </div>
+      <div style="font-size:12px;color:${C.muted};margin-bottom:6px">分类</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">${cPills}</div>
+      <div style="font-size:12px;color:${C.muted};margin-bottom:6px">标签</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">${tagPills}<button data-a="ee_clearTag" style="padding:5px 10px;border-radius:999px;border:1px dashed ${C.line};background:transparent;color:${C.faint};font-size:13px">清除</button></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="ee_note" value="${e(x.note||'')}" placeholder="备注" style="${IS()}">
+        <label style="${BS(C.g,'cursor:pointer;flex-shrink:0')}">📎<input type="file" accept="image/*" id="ee_imgBtn" style="display:none"></label>
+      </div>
+      ${imgPrev}
+      <div style="display:flex;gap:8px;margin-top:14px">
+        <button data-a="ee_delete" style="${BS(C.wS,'color:'+C.w)}">删除</button>
+        <button data-a="ee_save" style="${BS(C.p,'flex:1;font-weight:600')}">保存修改</button>
+      </div>
+    </div>
+  </div>`
 }
 
 // ═══════════════════════ TAB: LIST ═══════════════════════
 function renderList(){
-  const addCard=card('新建清单',`<div style="display:flex;gap:8px">
-    <input id="nList" value="${e(nList)}" placeholder="购物、行李、要读的书…" style="${IS()}">
-    <button data-a="addList" style="${BS(C.p)}">新建</button>
-  </div>`);
-  const lists=S.lists.map(l=>{
+  const iconPick=LIST_ICONS.map(ic=>`<button data-a="pickListIcon" data-v="${ic}" style="width:34px;height:34px;border-radius:9px;border:none;cursor:pointer;font-size:18px;background:${nListIcon===ic?C.pS:'transparent'}">${ic}</button>`).join('');
+  const addCard=card('新建清单',`
+    <div style="font-size:12px;color:${C.muted};margin-bottom:6px">选个图标</div>
+    <div style="display:flex;flex-wrap:wrap;gap:2px;margin-bottom:10px">${iconPick}</div>
+    <div style="display:flex;gap:8px">
+      <input id="nList" value="${e(nList)}" placeholder="购物、行李、要读的书…" style="${IS()}">
+      <button data-a="addList" style="${BS(C.p)}">新建</button>
+    </div>
+  `);
+  const dragOn=(S.listMode||'fold')==='drag';
+  const modeBar=`<div style="display:flex;gap:8px;margin-bottom:12px;align-items:center">
+    <span style="font-size:12px;color:${C.muted}">交互模式</span>
+    <button data-a="setListMode" data-v="fold" style="${(S.listMode||'fold')==='fold'?BS(C.p,'padding:5px 12px;font-size:13px'):BS(C.pS,'padding:5px 12px;font-size:13px;color:'+C.p)}">点击折叠</button>
+    <button data-a="setListMode" data-v="drag" style="${dragOn?BS(C.p,'padding:5px 12px;font-size:13px'):BS(C.pS,'padding:5px 12px;font-size:13px;color:'+C.p)}">拖拽排序</button>
+  </div>`;
+  const lists=S.lists.map((l,idx)=>{
     const done=l.items.filter(i=>i.done).length;
-    const items=l.items.map(it=>`<div style="display:flex;align-items:center;gap:10px;padding:7px 0">
+    const collapsed=listCollapse[l.id];
+    const icon=l.icon||'📝';
+    const items=collapsed?'':l.items.map(it=>`<div style="display:flex;align-items:center;gap:10px;padding:7px 0">
       <button data-a="toggleItem" data-lid="${l.id}" data-id="${it.id}" style="width:22px;height:22px;border-radius:7px;border:2px solid ${it.done?C.g:C.line};background:${it.done?C.g:'transparent'};color:#fff;font-size:13px;cursor:pointer;flex-shrink:0">${it.done?'✓':''}</button>
       <span style="flex:1;font-size:14px;color:${it.done?C.faint:C.ink};text-decoration:${it.done?'line-through':'none'}">${e(it.text)}</span>
       ${xbtn('delItem',it.id+'/'+l.id)}
     </div>`).join('');
-    return card('',`
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <span style="font-family:${SR};font-size:17px;font-weight:600">${e(l.title)}</span>
-        <span style="font-size:12px;color:${C.faint}">${done}/${l.items.length}&nbsp;&nbsp;
-          <button data-a="delList" data-id="${l.id}" style="background:none;border:none;color:${C.faint};cursor:pointer;font-size:12px">删除</button></span>
-      </div>
-      ${items}
-      <div style="display:flex;gap:8px;margin-top:8px">
+    const inputRow=collapsed?'':`<div style="display:flex;gap:8px;margin-top:8px">
         <input id="li_${l.id}" value="${e(liIn[l.id]||'')}" placeholder="加一项…" style="${IS()}">
         <button data-a="addItem" data-lid="${l.id}" style="${BS(C.g)}">＋</button>
+      </div>`;
+    const dragAttrs=dragOn?`draggable="true" data-drag="${l.id}"`:'';
+    const handle=dragOn?`<span style="cursor:grab;color:${C.faint};font-size:16px;margin-right:4px">⠿</span>`:'';
+    return`<div ${dragAttrs} style="background:${C.card};border-radius:14px;padding:14px 16px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.06);${dragOn?'border:1px dashed '+C.line:''}">
+      <div style="display:flex;justify-content:space-between;align-items:center;${collapsed?'':'margin-bottom:10px'}">
+        <div data-a="toggleCollapse" data-id="${l.id}" style="display:flex;align-items:center;gap:6px;cursor:pointer;flex:1">
+          ${handle}<span style="font-size:20px">${icon}</span>
+          <span style="font-family:${SR};font-size:17px;font-weight:600">${e(l.title)}</span>
+          <span style="font-size:12px;color:${C.faint}">${collapsed?'▸':'▾'}</span>
+        </div>
+        <span style="font-size:12px;color:${C.faint}">${done}/${l.items.length}&nbsp;
+          <button data-a="delList" data-id="${l.id}" style="background:none;border:none;color:${C.faint};cursor:pointer;font-size:12px">删除</button></span>
       </div>
-    `)
+      ${items}${inputRow}
+    </div>`
   }).join('');
-  return addCard+(lists||empty('还没有清单，新建一个吧。'))
+  return addCard+(S.lists.length?modeBar:'')+(lists||empty('还没有清单，新建一个吧。'))
+}
+
+// ═══════════════════════ TAB: VOCAB（英语单词）═══════════════════════
+// 词典 URL：托管在用户的 GitHub 仓库根目录
+const DICT_URL='./ecdict.json';
+const DICT_VERSION='v1';
+
+// 查词：先查 IndexedDB 词典，找不到尝试简单转小写/去复数
+async function lookupWord(w){
+  if(!w)return null;
+  const word=w.trim().toLowerCase();
+  if(!word)return null;
+  let r=await dictDB.get(word);
+  if(r)return r;
+  // 简单回退：去掉常见后缀
+  for(const suf of ['s','es','ed','ing','ly','er','est']){
+    if(word.endsWith(suf)){
+      const base=word.slice(0,-suf.length);
+      r=await dictDB.get(base);
+      if(r)return {...r,_baseForm:base,_inflected:word};
+    }
+  }
+  return null;
+}
+
+// 浏览器原生发音（免费）
+function speakWord(w,lang){
+  try{
+    if(!window.speechSynthesis)return;
+    window.speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(w);
+    u.lang=lang||'en-US';
+    u.rate=0.9;
+    window.speechSynthesis.speak(u);
+  }catch(e){}
+}
+
+// 下载词典
+async function downloadDict(){
+  if(vDictLoading)return;
+  vDictLoading=true;vDictProgress=0;render();
+  try{
+    const res=await fetch(DICT_URL);
+    if(!res.ok)throw new Error('词典文件未找到，请确认 ecdict.json 已上传到 GitHub 仓库根目录');
+    const total=Number(res.headers.get('content-length'))||0;
+    const reader=res.body.getReader();
+    let received=0,chunks=[];
+    while(true){
+      const{done,value}=await reader.read();
+      if(done)break;
+      chunks.push(value);received+=value.length;
+      if(total){vDictProgress=Math.round(received/total*50);render()}
+    }
+    // 合并 chunks
+    const blob=new Blob(chunks);
+    const text=await blob.text();
+    chunks=null;
+    vDictProgress=55;render();
+    // 解析 JSON（格式：{"word": {...}, "word2": {...}}）
+    const data=JSON.parse(text);
+    vDictProgress=60;render();
+    // 批量写入 IndexedDB
+    const entries=Object.entries(data);
+    const batchSize=2000;
+    for(let i=0;i<entries.length;i+=batchSize){
+      const slice=entries.slice(i,i+batchSize);
+      await dictDB.putBatch(slice);
+      vDictProgress=60+Math.round((i/entries.length)*40);render();
+    }
+    S.dictReady=true;
+    vDictLoading=false;vDictProgress=100;
+    save({...S});
+  }catch(err){
+    vDictLoading=false;vDictProgress=0;
+    alert('词典下载失败：'+err.message+'\n\n请确认 ecdict.json 已上传到 GitHub 仓库。');
+    render();
+  }
+}
+
+// 添加单词到生词本
+async function addVocab(word){
+  word=word.trim().toLowerCase();
+  if(!word)return;
+  if(S.vocab.find(v=>v.word===word)){alert('已收藏过这个词。');return}
+  const entry=await lookupWord(word);
+  const item={
+    word,
+    added:Date.now(),
+    box:1, // SM-2 难度等级
+    nextReview:Date.now(),
+    lastReview:null,
+    reviewCount:0,
+    tags:[]
+  };
+  S.vocab=[item,...S.vocab];
+  vAddInput='';
+  save({...S});
+  if(!entry){
+    setTimeout(()=>{
+      if(confirm('词典里没找到 "'+word+'"。\n\n是否仍要保留？（你可以手动添加笔记/释义）')){
+        // 已添加，不做处理
+      }else{
+        S.vocab=S.vocab.filter(v=>v.word!==word);save({...S});
+      }
+    },100);
+  }
+}
+
+// 渲染：词典未就绪时的界面
+function renderDictNotReady(){
+  return card('📖 英语单词',`
+    <div style="text-align:center;padding:20px 10px">
+      <div style="font-size:46px;margin-bottom:14px">📚</div>
+      <h3 style="font-family:${SR};font-size:18px;margin-bottom:8px">首次使用需要下载词典</h3>
+      <p style="font-size:13px;color:${C.muted};line-height:1.8;margin-bottom:20px">
+        采用 ECDICT 开源词典（中英双语，约77万词条）。<br>
+        下载到本地后<b>完全离线可用</b>，无需联网，<br>
+        所有设备首次访问各自下载一次。
+      </p>
+      ${vDictLoading?`
+        <div style="background:${C.pS};border-radius:12px;padding:16px">
+          <div style="font-size:13px;color:${C.p};margin-bottom:8px">下载中… ${vDictProgress}%</div>
+          <div style="height:8px;background:${C.line};border-radius:4px;overflow:hidden">
+            <div style="width:${vDictProgress}%;height:100%;background:${C.p};transition:width .3s"></div>
+          </div>
+          <div style="font-size:11px;color:${C.faint};margin-top:8px">请勿关闭页面，约30秒…</div>
+        </div>
+      `:`
+        <button data-a="dictDl" style="${BS(C.p,'padding:14px 32px;font-size:15px;font-weight:600')}">⬇️ 下载词典（约 22MB）</button>
+        <div style="font-size:11px;color:${C.faint};margin-top:14px;line-height:1.7">
+          ⓘ 词典文件需托管在 GitHub 仓库根目录<br>
+          文件名：<code style="background:${C.line};padding:2px 6px;border-radius:4px;font-size:11px">ecdict.json</code>
+        </div>
+      `}
+    </div>
+  `)
+}
+
+// 渲染：单词详情页
+let _detailCache={}; // 缓存当前详情页查询结果
+async function loadDetailEntry(w){
+  if(_detailCache[w])return _detailCache[w];
+  const r=await lookupWord(w);_detailCache[w]=r;render();return r;
+}
+function renderVocabDetail(){
+  if(!vDetail)return '';
+  const w=vDetail.word;
+  const item=S.vocab.find(v=>v.word===w);
+  // 异步加载详情
+  if(_detailCache[w]===undefined)loadDetailEntry(w);
+  const entry=_detailCache[w];
+  const note=S.vocabNotes[w]||'';
+  const aiNote=S.vocabAi[w]||'';
+
+  // 解析词典数据
+  let phonetic='',translation='',definition='',pos='',tag='',exchange='',collins=0,bnc=0;
+  if(entry){
+    phonetic=entry.phonetic||'';
+    translation=entry.translation||entry.def||entry.definition||'';
+    definition=entry.definition||entry.def||'';
+    pos=entry.pos||'';
+    tag=entry.tag||'';
+    exchange=entry.exchange||'';
+    collins=entry.collins||0;
+    bnc=entry.bnc||0;
+  }
+
+  // 词形变化解析
+  const exchangeBadges=exchange?exchange.split('/').map(p=>{
+    const [k,v]=p.split(':');const labels={'p':'过去式','d':'过去分词','i':'现在分词','3':'第三人称单数','r':'比较级','t':'最高级','s':'复数','0':'原形','1':'变化'};
+    return v?`<span style="display:inline-block;font-size:11px;background:${C.gS};color:${C.g};padding:3px 8px;border-radius:6px;margin:2px 4px 2px 0">${labels[k]||k}: ${e(v)}</span>`:''
+  }).join(''):'';
+
+  // 标签解析
+  const tagMap={'zk':'中考','gk':'高考','cet4':'CET4','cet6':'CET6','ky':'考研','ielts':'雅思','toefl':'托福','gre':'GRE'};
+  const tagBadges=tag?tag.split(' ').map(t=>tagMap[t]?`<span style="font-size:11px;background:${C.wS};color:${C.w};padding:2px 8px;border-radius:5px;margin-right:4px">${tagMap[t]}</span>`:'').join(''):'';
+
+  return `<div style="position:fixed;inset:0;z-index:40;background:${C.bg};overflow-y:auto;animation:fp .25s ease">
+    <div style="max-width:560px;margin:0 auto;padding:22px 16px 100px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+        <button data-a="closeVocabDetail" style="background:${C.card};border:1px solid ${C.line};border-radius:10px;width:38px;height:38px;font-size:18px;cursor:pointer">←</button>
+        <button data-a="delVocab" data-id="${e(w)}" style="background:none;border:none;color:${C.faint};font-size:13px;cursor:pointer">移除</button>
+      </div>
+      <div style="text-align:center;margin-bottom:24px">
+        <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:8px">
+          <h1 style="font-family:${SR};font-size:36px;font-weight:700;color:${C.ink}">${e(w)}</h1>
+          <button data-a="speak" data-v="${e(w)}" style="width:42px;height:42px;border-radius:50%;border:none;background:${C.pS};color:${C.p};font-size:20px;cursor:pointer">🔊</button>
+        </div>
+        ${phonetic?`<div style="font-size:15px;color:${C.muted};font-family:${SR};letter-spacing:1px">/ ${e(phonetic)} /</div>`:''}
+        ${tagBadges?`<div style="margin-top:10px">${tagBadges}</div>`:''}
+      </div>
+
+      ${entry===null?card('',`<div style="text-align:center;color:${C.faint};padding:20px">词典中未收录此词，你可以手动添加笔记。</div>`):
+       entry===undefined?card('',`<div style="text-align:center;color:${C.muted};padding:20px"><span class="spin">⏳</span> 查询中…</div>`):
+       `
+        ${translation?card('中文释义',`<div style="font-size:15px;line-height:1.9;white-space:pre-wrap">${e(translation)}</div>`):''}
+        ${definition&&definition!==translation?card('English Definition',`<div style="font-size:14px;line-height:1.8;font-family:${SR};white-space:pre-wrap">${e(definition)}</div>`):''}
+        ${exchangeBadges?card('词形变化',`<div>${exchangeBadges}</div>`):''}
+        ${collins||bnc?card('词频信息',`
+          <div style="display:flex;gap:14px;font-size:13px">
+            ${collins?`<div><span style="color:${C.muted}">柯林斯星级 </span><span style="color:${C.p};font-weight:600">${'★'.repeat(collins)}</span></div>`:''}
+            ${bnc?`<div><span style="color:${C.muted}">BNC词频 </span><span style="color:${C.p};font-weight:600">#${bnc}</span></div>`:''}
+          </div>
+        `):''}
+       `}
+
+      ${card('我的笔记',`
+        <textarea id="vNote" placeholder="写下你对这个词的理解、用法、例句…" rows="4" style="${IS('resize:vertical;line-height:1.8')}">${e(note)}</textarea>
+        <button data-a="saveVocabNote" data-id="${e(w)}" style="${BS(C.p,'width:100%;margin-top:8px')}">保存笔记</button>
+      `)}
+
+      ${aiNote?card('🎴 母语者思维讲解',`<div style="font-size:14px;line-height:2;white-space:pre-wrap;font-family:${SR}">${e(aiNote)}</div>
+        <button data-a="aiVocabExplain" data-id="${e(w)}" data-force="1" style="${BS(C.line,'width:100%;margin-top:10px;color:'+C.muted+';font-size:12px')}">长按重新生成（耗费 token）</button>`):
+        card('🎴 母语者思维讲解',`
+          <p style="font-size:12px;color:${C.muted};line-height:1.8;margin-bottom:10px">让 AI 从母语者视角解释这个词的<b>核心意象</b>，比单纯背中文更深入。每个词只调用一次，结果永久保存。<br>预估花费：约 0.005 元人民币</p>
+          ${S.apiKey?`<button data-a="aiVocabExplain" data-id="${e(w)}" style="${BS(C.p,'width:100%')}">✨ 生成讲解</button>`:`<div style="font-size:12px;color:${C.faint};text-align:center;padding:10px">先在 ⚙️ 设置里填入 API Key</div>`}
+        `)}
+
+      ${card('个人标签',`
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:${item.tags&&item.tags.length?'10px':'0'}">
+          ${(item.tags||[]).map(t=>`<span style="display:inline-flex;align-items:center;gap:4px;background:${C.pS};color:${C.p};padding:4px 10px;border-radius:999px;font-size:13px">${e(t)}<button data-a="removeVocabTag" data-id="${e(w)}" data-v="${e(t)}" style="background:none;border:none;color:${C.p};cursor:pointer;font-size:15px;line-height:1;padding:0">×</button></span>`).join('')}
+        </div>
+        <div style="display:flex;gap:8px">
+          <input id="tagInput" placeholder="添加标签（雅思、动词、颜色…）" style="${IS()}">
+          <button data-a="addVocabTag" data-id="${e(w)}" style="${BS(C.p)}">+</button>
+        </div>
+      `)}
+
+      ${(()=>{const syn=(S.vocabSynonyms||{})[w];if(syn==='__loading__')return card('🔀 近义词辨析',`<div style="text-align:center;padding:16px;color:${C.muted}"><span class="spin">⏳</span> 生成中…</div>`);if(syn)return card('🔀 近义词辨析',`<div style="font-size:14px;line-height:1.95;white-space:pre-wrap;font-family:${SR}">${e(syn)}</div><button data-a="aiSynonyms" data-id="${e(w)}" data-force="1" style="${BS(C.line,'width:100%;margin-top:10px;color:'+C.muted+';font-size:12px')}">重新生成（消耗 token）</button>`);return card('🔀 近义词辨析',`<p style="font-size:12px;color:${C.muted};margin:0 0 10px;line-height:1.7">AI 帮你弄清楚 ${e(w)} 和它的近义词之间的微妙差别，帮助真正掌握。约 0.005 元/次。</p>${S.apiKey?`<button data-a="aiSynonyms" data-id="${e(w)}" style="${BS(C.g,'width:100%')}">🔀 生成近义词辨析</button>`:`<div style="font-size:12px;color:${C.faint};text-align:center">先在 ⚙️ 设置里填入 API Key</div>`}`)})()}
+
+      ${item.reviewCount>0?card('复习记录',`<div style="display:flex;gap:10px">
+        ${statBox('复习次数',item.reviewCount+'次',C.p,C.pS)}
+        ${statBox('掌握等级','Lv.'+item.box,item.box>=5?C.g:C.w,item.box>=5?C.gS:C.wS)}
+        ${statBox('下次复习',item.nextReview<=Date.now()?'今天':Math.ceil((item.nextReview-Date.now())/864e5)+'天后',C.muted,C.line)}
+      </div>`):''}
+
+      <div style="margin-top:16px;text-align:center;font-size:11px;color:${C.faint}">
+        添加于 ${new Date(item.added).toLocaleDateString('zh-CN')} · 复习 ${item.reviewCount} 次
+      </div>
+    </div>
+  </div>`
+}
+
+// AI 母语者讲解
+async function aiVocabExplain(word,force){
+  if(!S.apiKey){alert('请先在设置里填入 API Key');return}
+  if(S.vocabAi[word]&&!force)return;
+  if(force){
+    if(!confirm('重新生成会再调用一次 API，耗费 token。确定吗？'))return;
+  }
+  // 月度计数
+  const mon=today().slice(0,7);
+  if(S.aiUsage.month!==mon){S.aiUsage={count:0,month:mon}}
+  S.aiUsage.count++;
+  S.vocabAi[word]='__loading__';save({...S});
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':S.apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({
+        model:'claude-haiku-4-5-20251001',
+        max_tokens:700,
+        messages:[{role:'user',content:`请用「母语者思维」帮我理解英文单词 "${word}"。不要简单给中文翻译，而是按以下结构输出（用中文）：
+
+【核心意象】
+这个词在母语者脑中的核心画面/感觉是什么？用一两句话描述。
+
+【典型场景】
+列出3-4个该词最常出现的场景，每个场景配一个英文例句+中文意思。
+
+【为什么不是XX】
+和某个常被混淆的中文意思做对比，说明为什么这个词≠那个中文翻译的全部。
+
+【一句话记忆】
+用一句话概括，让我下次见到这个词立刻浮现正确的画面。
+
+要求：直接输出讲解内容，不要客套话。`}]
+      })
+    });
+    const json=await res.json();
+    if(json.error)throw new Error(json.error.message);
+    const text=json.content&&json.content[0]&&json.content[0].text||'';
+    S.vocabAi[word]=text;save({...S});
+  }catch(err){
+    delete S.vocabAi[word];save({...S});
+    alert('AI 讲解失败：'+err.message);
+  }
+}
+
+// 渲染：单词主页
+function renderVocab(){
+  if(!S.dictReady&&!vDictLoading)return renderDictNotReady();
+  if(vDictLoading)return renderDictNotReady();
+
+  const search=vSearch.trim().toLowerCase();
+  let list=[...S.vocab];
+  if(search)list=list.filter(v=>v.word.includes(search));
+  if(vSort==='added')list.sort((a,b)=>b.added-a.added);
+  else if(vSort==='alpha')list.sort((a,b)=>a.word.localeCompare(b.word));
+  else if(vSort==='review')list.sort((a,b)=>a.nextReview-b.nextReview);
+  if(vView==='due')list=list.filter(v=>v.nextReview<=Date.now());
+
+  // 统计数据
+  const streak=calcStreak();
+  const vDue=S.vocab.filter(v=>v.nextReview<=Date.now()).length;
+  const vMastered=S.vocab.filter(v=>v.box>=5).length;
+  const vLearning=S.vocab.filter(v=>v.box>1&&v.box<5).length;
+  const vNew=S.vocab.filter(v=>v.reviewCount===0).length;
+  const vTotal=S.vocab.length;
+
+  // 今日复习卡
+  const reviewCard=total>0?card('',`
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+      <div>
+        <div style="font-family:${SR};font-size:17px;font-weight:600">今日复习</div>
+        <div style="font-size:13px;color:${C.muted};margin-top:3px">${vDue>0?`<span style="color:${C.w};font-weight:600">${due} 个词</span> 待复习`:'暂无待复习，继续学新词吧 🌿'}</div>
+      </div>
+      ${vDue>0?`<div style="display:flex;gap:8px">
+        <button data-a="startReview" data-v="flip" style="${BS(C.p,'padding:10px 14px;font-size:13px')}">临摆</button>
+        <button data-a="startReview" data-v="swipe" style="${BS(C.g,'padding:10px 14px;font-size:13px')}">划卡</button>
+        <button data-a="startReview" data-v="spell" style="${BS(C.w,'padding:10px 14px;font-size:13px')}">拼写</button>
+      </div>`:`<button data-a="startReview" data-v="flip" style="${BS(C.line,'padding:10px 14px;font-size:13px;color:'+C.muted)}" disabled>临摆</button>`}
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button data-a="openStats" style="${BS(C.pS,'flex:1;color:'+C.p+';font-size:13px')}">📊 ${streak>0?'🔥'+streak+'天连打·':''}统计</button>
+      <button data-a="openBulk" style="${BS(C.gS,'flex:1;color:'+C.g+';font-size:13px')}">📥 批量导入</button>
+    </div>
+  ${vTotal>0?`<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+      ${statBox('总收藏',String(vTotal),C.p,C.pS)}
+      ${statBox('已掌握',String(vMastered),C.g,C.gS)}
+      ${statBox('学习中',String(vLearning),C.w,C.wS)}
+      ${statBox('未复习',String(vNew),C.muted,C.line)}
+    </div>`:''}
+    ${vTotal>0?`<div style="margin-top:12px"><div style="font-size:11px;color:${C.faint};margin-bottom:4px">掌握进度</div>
+      <div style="height:8px;background:${C.line};border-radius:4px;overflow:hidden;display:flex">
+        <div style="width:${Math.round(vMastered/Math.max(1,vTotal)*100)}%;background:${C.g};transition:width .5s"></div>
+        <div style="width:${Math.round(vLearning/Math.max(1,vTotal)*100)}%;background:${C.w};transition:width .5s"></div>
+      </div>
+      <div style="display:flex;gap:12px;font-size:11px;color:${C.faint};margin-top:4px">
+        <span><span style="color:${C.g}">■</span> 已掌握</span>
+        <span><span style="color:${C.w}">■</span> 学习中</span>
+        <span><span style="color:${C.line}">■</span> 未开始</span>
+      </div>
+    </div>`:''}
+  `):'';
+
+  const addCard=card('添加新词',`
+    <div style="display:flex;gap:8px">
+      <input id="vAddInput" value="${e(vAddInput)}" placeholder="输入英文单词或短语…" autocapitalize="off" autocomplete="off" style="${IS()}">
+      <button data-a="addVocab" style="${BS(C.p)}">收藏</button>
+    </div>
+    <div style="font-size:11px;color:${C.faint};margin-top:8px">输入后会自动查询词典并添加到下方词库。</div>
+  `);
+
+  const due=S.vocab.filter(v=>v.nextReview<=Date.now()).length;
+  const filterBar=`<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
+    ${pill(vView==='all',C.p,C.pS,`全部 ${S.vocab.length}`,'setVView','all')}
+    ${pill(vView==='due',C.w,C.wS,`待复习 ${due}`,'setVView','due')}
+    <div style="flex:1"></div>
+    ${pill(vSort==='added',C.g,C.gS,'最新','setVSort','added')}
+    ${pill(vSort==='alpha',C.g,C.gS,'字母','setVSort','alpha')}
+    ${pill(vSort==='review',C.g,C.gS,'复习序','setVSort','review')}
+  </div>`;
+
+  const searchBar=S.vocab.length>5?`<input id="vSearch" value="${e(vSearch)}" placeholder="🔍 搜索单词…" style="${IS('margin-bottom:12px')}">`:'';
+
+  const items=list.map(v=>{
+    const dueNow=v.nextReview<=Date.now();
+    return `<div data-a="openVocabDetail" data-v="${e(v.word)}" style="display:flex;align-items:center;gap:12px;padding:14px 16px;background:${C.card};border-radius:12px;margin-bottom:8px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.04)">
+      <div style="flex:1;min-width:0">
+        <div style="font-family:${SR};font-size:17px;font-weight:600;color:${C.ink}">${e(v.word)}</div>
+        <div style="font-size:11px;color:${C.faint};margin-top:3px">
+          ${dueNow?`<span style="color:${C.w}">● 待复习</span>`:'掌握 lv.'+v.box}
+          ${S.vocabAi[v.word]&&S.vocabAi[v.word]!=='__loading__'?' · 🎴':''}
+          ${S.vocabNotes[v.word]?' · 📝':''}
+        </div>
+      </div>
+      <button data-a="speak" data-v="${e(v.word)}" data-stop="1" style="width:34px;height:34px;border-radius:50%;border:none;background:${C.pS};color:${C.p};font-size:15px;cursor:pointer;flex-shrink:0">🔊</button>
+    </div>`
+  }).join('');
+
+  const emptyTxt=S.vocab.length===0?'词库还是空的，添加第一个词开始吧。':(search?'没有匹配的词。':'没有符合筛选的词。');
+  return reviewCard+addCard+filterBar+searchBar+(items||empty(emptyTxt))
+}
+
+// ═══════════════════════ 统计 / 标签 / 导入 / 同义词 ═══════════════════════
+
+// 连续打卡天数
+function calcStreak(){
+  if(!S.reviewHistory)return 0;
+  let streak=0,d=today();
+  while(S.reviewHistory[d]&&S.reviewHistory[d].reviewed>0){streak++;d=shiftD(d,-1)}
+  return streak
+}
+
+// 学习统计面板
+function renderVocabStats(){
+  if(!showStats)return'';
+  const days=14;
+  const dates=Array.from({length:days},(_,i)=>shiftD(today(),-(days-1-i)));
+  const hist=S.reviewHistory||{};
+  const maxVal=Math.max(1,...dates.map(d=>hist[d]?.reviewed||0));
+  const streak=calcStreak();
+  const totalReviewed=Object.values(hist).reduce((s,v)=>s+(v.reviewed||0),0);
+  const totalCorrect=Object.values(hist).reduce((s,v)=>s+(v.correct||0),0);
+  const bars=dates.map(d=>{
+    const v=hist[d]?.reviewed||0;const pct=Math.round(v/maxVal*100);const isToday=d===today();
+    return`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px">
+      <div style="font-size:9px;color:${C.faint}">${v||''}</div>
+      <div style="width:100%;background:${C.line};border-radius:3px;height:60px;position:relative;overflow:hidden">
+        <div style="position:absolute;bottom:0;left:0;right:0;background:${isToday?C.p:C.pS};height:${pct}%;transition:height .4s"></div>
+      </div>
+      <div style="font-size:9px;color:${isToday?C.p:C.faint}">${d.slice(8)}</div>
+    </div>`
+  }).join('');
+  const levelLabels={1:'初学',2:'熟悉',3:'记得',4:'较熟',5:'熟练',6:'掌握',7:'精通',8:'永记'};
+  const levelColors=[C.line,C.faint,'#D9C7A7',C.w,C.gS,C.g,C.p,C.p];
+  const levelBars=[1,2,3,4,5,6,7,8].map(box=>{
+    const cnt=S.vocab.filter(v=>v.box===box).length;if(!cnt)return'';
+    return`<div style="display:flex;align-items:center;gap:8px;padding:5px 0">
+      <span style="font-size:11px;color:${C.muted};width:32px;flex-shrink:0">${levelLabels[box]}</span>
+      <div style="flex:1;height:13px;background:${C.line};border-radius:4px;overflow:hidden">
+        <div style="width:${Math.round(cnt/Math.max(1,S.vocab.length)*100)}%;height:100%;background:${levelColors[box-1]}"></div>
+      </div>
+      <span style="font-size:11px;color:${C.muted};width:18px;text-align:right">${cnt}</span>
+    </div>`
+  }).join('');
+  return`<div style="position:fixed;inset:0;z-index:51;background:rgba(20,18,30,.4);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center">
+    <div style="width:100%;max-width:560px;max-height:88vh;overflow-y:auto;background:${C.bg};border-top-left-radius:24px;border-top-right-radius:24px;padding:10px 18px 40px;animation:su .28s ease;box-sizing:border-box">
+      <div style="width:40px;height:4px;border-radius:2px;background:${C.line};margin:0 auto 14px"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+        <h2 style="font-family:${SR};font-size:20px">学习统计</h2>
+        <button data-a="closeStats" style="background:none;border:none;color:${C.muted};font-size:22px;cursor:pointer">×</button>
+      </div>
+      <div style="display:flex;gap:10px;margin-bottom:16px">
+        ${statBox('🔥 连续打卡',streak>0?streak+'天':'0天',streak>=3?C.w:C.muted,streak>=3?C.wS:C.line)}
+        ${statBox('总复习次数',totalReviewed+'次',C.p,C.pS)}
+        ${statBox('总体正确率',totalReviewed>0?Math.round(totalCorrect/totalReviewed*100)+'%':'—',C.g,C.gS)}
+      </div>
+      ${card('最近 14 天 · 每日复习量',`<div style="display:flex;gap:3px;align-items:flex-end;padding:8px 0">${bars}</div>`)}
+      ${S.vocab.length?card('掌握等级分布',levelBars||empty('还没有复习数据')):''}
+    </div>
+  </div>`
+}
+
+// 批量导入弹层
+function renderBulkImport(){
+  if(!showBulk)return'';
+  const lines=(bulkText||'').split(/[\n,，；;\s]+/).map(w=>w.trim().toLowerCase()).filter(w=>w&&/^[a-z]/.test(w)&&w.length>1);
+  const unique=[...new Set(lines)].filter(w=>!S.vocab.find(v=>v.word===w));
+  return`<div style="position:fixed;inset:0;z-index:51;background:rgba(20,18,30,.45);backdrop-filter:blur(5px);display:flex;align-items:flex-end;justify-content:center">
+    <div style="width:100%;max-width:560px;background:${C.bg};border-top-left-radius:24px;border-top-right-radius:24px;padding:10px 18px 36px;animation:su .28s ease;box-sizing:border-box">
+      <div style="width:40px;height:4px;border-radius:2px;background:${C.line};margin:0 auto 14px"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h2 style="font-family:${SR};font-size:19px">批量添加单词</h2>
+        <button data-a="closeBulk" style="background:none;border:none;color:${C.muted};font-size:22px;cursor:pointer">×</button>
+      </div>
+      <p style="font-size:13px;color:${C.muted};margin-bottom:10px;line-height:1.7">每行一个词，或用逗号/空格分隔。已收藏的词会自动跳过。</p>
+      <textarea id="bulkInput" rows="7" placeholder="traffic\nabandon\nability&#10;achieve, affect, argue…" style="${IS('resize:none;line-height:1.8;font-family:monospace;font-size:14px')}">${e(bulkText)}</textarea>
+      <div style="font-size:12px;color:${C.muted};margin:8px 0 14px">识别到 <b>${unique.length}</b> 个新词（去重、已跳过已收藏的）</div>
+      <div style="display:flex;gap:8px">
+        <button data-a="closeBulk" style="${BS(C.line,'flex:1;color:'+C.muted)}">取消</button>
+        <button data-a="confirmBulk" style="${BS(C.p,'flex:2;font-weight:600')}">添加 ${unique.length} 个词</button>
+      </div>
+    </div>
+  </div>`
+}
+
+// AI 同义词辨析
+async function aiSynonyms(word,force){
+  if(!S.apiKey){alert('请先在设置里填入 API Key');return}
+  if(!S.vocabSynonyms)S.vocabSynonyms={};
+  if(S.vocabSynonyms[word]&&S.vocabSynonyms[word]!=='__loading__'&&!force){
+    if(!confirm('已有辨析结果，重新生成会消耗 token，确定？'))return
+  }
+  S.vocabSynonyms[word]='__loading__';save({...S});
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':S.apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:600,messages:[{role:'user',content:`请用中文帮我理解英文单词 "${word}" 和它的近义词之间的区别，要具体实用。
+
+格式：
+【核心区别速览】
+一句话说清 ${word} 最独特的地方。
+
+【近义词对比】
+（3-5个最常见的近义词，每个：英文词 → 最关键区别 + 一个地道例句）
+
+【什么时候该用 ${word}，而不是其他词？】
+给1-2个判断技巧。
+
+要求：简洁有力，直接给干货。`}]})
+    });
+    const json=await res.json();
+    if(json.error)throw new Error(json.error.message);
+    if(!S.vocabSynonyms)S.vocabSynonyms={};
+    S.vocabSynonyms[word]=json.content?.[0]?.text||'';
+    save({...S})
+  }catch(err){
+    if(S.vocabSynonyms)delete S.vocabSynonyms[word];
+    save({...S});alert('生成失败：'+err.message)
+  }
+}
+
+// ═══════════════════════ 复习系统（SM-2）═══════════════════════
+function sm2Grade(item,quality){
+  let ef=item.easeFactor||2.5,intv=item.interval||1,box=item.box||1;
+  if(quality===0){box=1;intv=1;}
+  else{
+    if(box<=1)intv=1;else if(box===2)intv=3;else intv=Math.max(1,Math.round(intv*ef));
+    box=Math.min(box+1,8);
+    ef=Math.max(1.3,ef+0.1-(3-quality)*(0.08+(3-quality)*0.02));
+  }
+  return{...item,box,interval:intv,easeFactor:Math.round(ef*100)/100,nextReview:Date.now()+intv*864e5,lastReview:Date.now(),reviewCount:(item.reviewCount||0)+1};
+}
+
+function startReview(mode){
+  let queue=[...S.vocab.filter(v=>v.nextReview<=Date.now())];
+  if(!queue.length){alert('今天没有待复习的词，继续加新词吧！');return}
+  for(let i=queue.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[queue[i],queue[j]]=[queue[j],queue[i]]}
+  reviewMode=mode;reviewQueue=queue.slice(0,30);reviewIdx=0;
+  reviewFlipped=false;reviewInput='';reviewStats={correct:0,hard:0,wrong:0};reviewDone=false;
+  _detailCache={};render();
+}
+
+function gradeWord(quality){
+  const item=reviewQueue[reviewIdx];if(!item)return;
+  if(quality===0)reviewStats.wrong++;else if(quality===1)reviewStats.hard++;else reviewStats.correct++;
+  const updated=sm2Grade(item,quality);
+  S.vocab=S.vocab.map(v=>v.word===item.word?updated:v);
+  // 追踪复习历史（用于统计和连胜）
+  const rd=today();
+  if(!S.reviewHistory)S.reviewHistory={};
+  if(!S.reviewHistory[rd])S.reviewHistory[rd]={reviewed:0,correct:0};
+  S.reviewHistory[rd].reviewed++;
+  if(quality>=2)S.reviewHistory[rd].correct++;
+  save({...S});
+  if(quality===0&&reviewQueue.filter(x=>x.word===item.word).length<2)reviewQueue.push({...updated});
+  reviewIdx++;
+  if(reviewIdx>=reviewQueue.length)reviewDone=true;
+  reviewFlipped=false;reviewInput='';render();
+}
+
+function renderReview(){
+  if(reviewDone){
+    const total=reviewStats.correct+reviewStats.hard+reviewStats.wrong;
+    const pct=Math.round(reviewStats.correct/Math.max(1,total)*100);
+    return`<div style="position:fixed;inset:0;z-index:50;background:${C.bg};display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;text-align:center;animation:fp .3s ease">
+      <div style="font-size:60px;margin-bottom:16px">${pct>=80?'🎉':pct>=50?'🌱':'💪'}</div>
+      <h2 style="font-family:${SR};font-size:24px;margin-bottom:6px">复习完成！</h2>
+      <p style="color:${C.muted};font-size:14px;margin-bottom:24px">共 ${total} 个词</p>
+      <div style="display:flex;gap:10px;margin-bottom:28px;width:100%;max-width:340px">
+        ${statBox('✓ 记住了',String(reviewStats.correct),C.g,C.gS)}
+        ${statBox('△ 有点模糊',String(reviewStats.hard),C.w,C.wS)}
+        ${statBox('✗ 不会',String(reviewStats.wrong),'#C75B70','#F7E0E4')}
+      </div>
+      <div style="font-family:${SR};font-size:32px;font-weight:700;color:${C.p}">${pct}%</div>
+      <div style="font-size:13px;color:${C.muted};margin-top:4px;margin-bottom:28px">掌握率</div>
+      <button data-a="closeReview" style="${BS(C.p,'padding:14px 48px;font-size:16px')}">完成</button>
+    </div>`
+  }
+
+  const item=reviewQueue[reviewIdx];if(!item)return'';
+  const progress=Math.round(reviewIdx/reviewQueue.length*100);
+  if(_detailCache[item.word]===undefined)loadDetailEntry(item.word);
+  const entry=_detailCache[item.word];
+  const trans=entry?.translation||'';
+  const shortTrans=trans.split('\n')[0].replace(/^[a-z.]+\. /,'').slice(0,80);
+
+  const bar=`<div style="position:absolute;top:0;left:0;right:0;height:4px;background:${C.line}"><div style="width:${progress}%;height:100%;background:${C.p};transition:width .4s"></div></div>`;
+  const closeBtn=`<button data-a="closeReview" style="position:absolute;top:14px;right:16px;background:none;border:none;color:${C.faint};font-size:22px;cursor:pointer;z-index:1">×</button>`;
+  const cnt=`<div style="position:absolute;top:16px;left:16px;font-size:12px;color:${C.muted};z-index:1">${reviewIdx+1} / ${reviewQueue.length}</div>`;
+
+  // ── 临摆模式 ──
+  if(reviewMode==='flip'){
+    const front=`<div style="text-align:center">
+      <div style="font-family:${SR};font-size:44px;font-weight:700;color:${C.ink};margin-bottom:10px">${e(item.word)}</div>
+      ${entry?.phonetic?`<div style="font-size:15px;color:${C.muted};margin-bottom:16px">/ ${e(entry.phonetic)} /</div>`:''}
+      <button data-a="speak" data-v="${e(item.word)}" style="width:46px;height:46px;border-radius:50%;border:none;background:${C.pS};color:${C.p};font-size:20px;cursor:pointer;margin-bottom:30px">🔊</button>
+      <br><button data-a="reviewFlip" style="${BS(C.p,'padding:14px 40px;font-size:15px')}">翻转看释义 →</button>
+    </div>`;
+    const back=`<div style="width:100%;max-width:440px">
+      <div style="font-family:${SR};font-size:30px;font-weight:700;color:${C.p};text-align:center;margin-bottom:6px">${e(item.word)}</div>
+      ${entry?.phonetic?`<div style="font-size:13px;color:${C.muted};text-align:center;margin-bottom:12px">/ ${e(entry.phonetic)} /</div>`:''}
+      <div style="background:${C.card};border-radius:16px;padding:18px;font-size:15px;line-height:1.9;white-space:pre-wrap;margin-bottom:20px">${e(trans.split('\n').slice(0,5).join('\n'))}</div>
+      <div style="font-size:12px;color:${C.faint};text-align:center;margin-bottom:12px">掌握情况？</div>
+      <div style="display:flex;gap:8px">
+        <button data-a="reviewGrade" data-v="0" style="${BS('#C75B70','flex:1;padding:14px 6px;font-size:14px')}">✗ 不会</button>
+        <button data-a="reviewGrade" data-v="1" style="${BS(C.w,'flex:1;padding:14px 6px;font-size:14px')}">△ 模糊</button>
+        <button data-a="reviewGrade" data-v="2" style="${BS(C.g,'flex:1;padding:14px 6px;font-size:14px')}">✓ 记住</button>
+        <button data-a="reviewGrade" data-v="3" style="${BS(C.p,'flex:1;padding:14px 6px;font-size:14px')}">★ 轻松</button>
+      </div>
+    </div>`;
+    return`<div style="position:fixed;inset:0;z-index:50;background:${C.bg};display:flex;flex-direction:column">${bar}${closeBtn}${cnt}
+      <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:60px 20px 24px">${reviewFlipped?back:front}</div>
+    </div>`
+  }
+
+  // ── 划卡模式 ──
+  if(reviewMode==='swipe'){
+    return`<div style="position:fixed;inset:0;z-index:50;background:${C.bg};display:flex;flex-direction:column" id="swipeArea">${bar}${closeBtn}${cnt}
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px 16px">
+        <div style="width:100%;max-width:360px;background:${C.card};border-radius:24px;padding:36px 24px;box-shadow:0 4px 24px rgba(0,0,0,.08);text-align:center" id="swipeCard">
+          <div style="font-family:${SR};font-size:40px;font-weight:700;color:${C.ink};margin-bottom:10px">${e(item.word)}</div>
+          ${entry?.phonetic?`<div style="font-size:14px;color:${C.muted};margin-bottom:12px">/ ${e(entry.phonetic)} /</div>`:''}
+          <button data-a="speak" data-v="${e(item.word)}" style="width:40px;height:40px;border-radius:50%;border:none;background:${C.pS};color:${C.p};font-size:18px;cursor:pointer;margin-bottom:12px">🔊</button>
+          ${reviewFlipped?`<div style="font-size:14px;line-height:1.85;color:${C.ink};text-align:left;margin-top:14px;white-space:pre-wrap;border-top:1px solid ${C.line};padding-top:14px">${e(trans.split('\n').slice(0,4).join('\n'))}</div>`
+          :`<div style="font-size:12px;color:${C.faint};margin-top:8px">点击看释义 / 左滑不会 / 右滑记住</div>`}
+        </div>
+        ${!reviewFlipped?`<button data-a="reviewFlip" style="margin-top:16px;background:none;border:1px solid ${C.line};border-radius:10px;padding:10px 28px;color:${C.muted};font-size:13px;cursor:pointer">看释义</button>`:''}
+      </div>
+      ${reviewFlipped?`<div style="padding:16px 20px 36px">
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:${C.faint};margin-bottom:8px;padding:0 4px">
+          <span>← 左滑：不会</span><span>右滑：记住 →</span>
+        </div>
+        <div style="display:flex;gap:10px">
+          <button data-a="reviewGrade" data-v="0" style="${BS('#C75B70','flex:1;padding:16px;font-size:15px')}">✗ 不会</button>
+          <button data-a="reviewGrade" data-v="1" style="${BS(C.w,'padding:16px 14px;font-size:15px')}">△</button>
+          <button data-a="reviewGrade" data-v="2" style="${BS(C.g,'flex:1;padding:16px;font-size:15px')}">✓ 记住</button>
+        </div>
+      </div>`:''}
+    </div>`
+  }
+
+  // ── 拼写模式 ──
+  if(reviewMode==='spell'){
+    return`<div style="position:fixed;inset:0;z-index:50;background:${C.bg};display:flex;flex-direction:column">${bar}${closeBtn}${cnt}
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px 24px">
+        <div style="font-size:12px;color:${C.muted};margin-bottom:16px">根据提示拼写单词</div>
+        <div style="background:${C.card};border-radius:18px;padding:22px 24px;width:100%;max-width:420px;text-align:center;margin-bottom:24px">
+          <div style="font-size:16px;line-height:1.9;color:${C.ink}">${e(shortTrans||'（查询中…）')}</div>
+          ${entry?.phonetic?`<div style="font-size:12px;color:${C.faint};margin-top:6px">/ ${e(entry.phonetic)} /</div>`:''}
+          <button data-a="speak" data-v="${e(item.word)}" style="width:36px;height:36px;border-radius:50%;border:none;background:${C.pS};color:${C.p};font-size:16px;cursor:pointer;margin-top:8px">🔊</button>
+        </div>
+        ${reviewFlipped?`
+          <div style="font-size:12px;color:${C.faint};margin-bottom:8px">正确答案</div>
+          <div style="font-family:${SR};font-size:34px;font-weight:700;color:${C.p};margin-bottom:8px">${e(item.word)}</div>
+          ${reviewInput&&reviewInput.toLowerCase()!==item.word?`<div style="font-size:13px;color:#C75B70;margin-bottom:20px">你的答案：${e(reviewInput)}</div>`:`<div style="font-size:13px;color:${C.g};margin-bottom:20px">✓ 拼写正确！</div>`}
+          <div style="display:flex;gap:10px;width:100%;max-width:420px">
+            <button data-a="reviewGrade" data-v="0" style="${BS('#C75B70','flex:1;padding:14px')}">✗ 不对</button>
+            <button data-a="reviewGrade" data-v="2" style="${BS(C.g,'flex:1;padding:14px')}">✓ 对了</button>
+          </div>
+        `:`
+          <input id="spellInput" value="${e(reviewInput)}" placeholder="输入英文单词…" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false" style="${IS('text-align:center;font-size:20px;letter-spacing:2px;max-width:420px')}">
+          <div style="display:flex;gap:10px;margin-top:14px;width:100%;max-width:420px">
+            <button data-a="reviewFlip" style="${BS(C.line,'flex:1;color:'+C.muted)}">不会，跳过</button>
+            <button data-a="reviewCheck" style="${BS(C.p,'flex:2')}">确认答案</button>
+          </div>
+        `}
+      </div>
+    </div>`
+  }
+  return''
 }
 
 // ═══════════════════════ TAB: JOURNAL ═══════════════════════
@@ -640,6 +1458,13 @@ function renderSettings(){
         ${S.bgc?`<button data-a="clearBg" style="${BS(C.line)};color:${C.muted}">恢复</button>`:''}
       </div>`)}
       ${card('账单货币符号',`<div style="display:flex;gap:8px">${curPills}</div>`)}
+      ${card('体重单位',`<div style="display:flex;gap:8px">
+        ${WUNITS.map(u=>pill((S.wunit||'kg')===u,C.p,C.pS,u==='kg'?'kg 公斤':'斤','setWunit',u)).join('')}
+      </div><div style="font-size:11px;color:${C.faint};margin-top:8px">切换后历史记录会自动按新单位换算显示。</div>`)}
+      ${card('清单交互模式',`<div style="display:flex;gap:8px">
+        ${pill((S.listMode||'fold')==='fold',C.p,C.pS,'点击折叠','setListMode','fold')}
+        ${pill((S.listMode||'fold')==='drag',C.p,C.pS,'拖拽排序','setListMode','drag')}
+      </div><div style="font-size:11px;color:${C.faint};margin-top:8px">折叠：点标题展开/收起；拖拽：长按卡片调整顺序。</div>`)}
       ${card('数据备份 / 恢复',`
         <p style="font-size:12px;color:${C.muted};margin:0 0 12px;line-height:1.7">数据只存在当前设备的浏览器里。换设备或清缓存前，先导出备份；到新设备打开网页后导入即可。</p>
         <div style="display:flex;gap:8px">
@@ -664,6 +1489,7 @@ function render(){
     else if(TAB==='food')body=renderFood();
     else if(TAB==='bills')body=renderBills();
     else if(TAB==='list')body=renderList();
+    else if(TAB==='vocab')body=renderVocab();
     else if(TAB==='journal')body=renderJournal();
     main=`
       <div style="position:fixed;top:0;right:0;width:200px;height:200px;border-radius:50%;background:${C.pS};filter:blur(10px);opacity:.6;pointer-events:none;z-index:0"></div>
@@ -685,7 +1511,13 @@ function render(){
     ${tabs.map(([id,label,icon])=>{const on=TAB===id;const col=isMe?(on?'#fff':'#7E79A8'):(on?C.p:C.faint);return`<button data-a="setTab" data-v="${id}" style="flex:1;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;color:${col};padding-top:10px"><span style="font-size:17px;opacity:${on?1:.55}">${icon}</span><span style="font-size:10px;font-weight:${on?600:400}">${label}</span></button>`}).join('')}
   </div>`;
   const sett=showSett?renderSettings():'';
-  document.getElementById('app').innerHTML=main+nav+sett;
+  const draft=aiDraft?renderAiDraft():'';
+  const editE=editExp?renderEditExp():'';
+  const vdetail=vDetail?renderVocabDetail():'';
+  const vreview=(reviewMode||reviewDone)?renderReview():'';
+  const vstats=renderVocabStats();
+  const vbulk=renderBulkImport();
+  document.getElementById('app').innerHTML=main+nav+sett+draft+editE+vdetail+vreview+vstats+vbulk;
   bindEvents();
   loadVisibleImages();
 }
@@ -717,11 +1549,11 @@ function bindEvents(){
   app.onclick=async ev=>{
     const el=ev.target.closest('[data-a]');if(!el)return;
     const a=el.dataset.a,v=el.dataset.v,id=el.dataset.id;
-    if(a==='setTab'){TAB=v;wIn=getE().weight!=null?String(getE().weight):'';render();return}
-    if(a==='prevDay'){DATE=shiftD(DATE,-1);wIn=getE().weight!=null?String(getE().weight):'';render();return}
-    if(a==='nextDay'){if(DATE<today()){DATE=shiftD(DATE,1);wIn=getE().weight!=null?String(getE().weight):'';render()};return}
-    if(a==='goToday'){DATE=today();wIn=getE().weight!=null?String(getE().weight):'';render();return}
-    if(a==='saveW'){const w=parseFloat(document.getElementById('wIn')?.value||'');mutE(e=>{e.weight=isNaN(w)?null:Math.round(w*10)/10});return}
+    if(a==='setTab'){TAB=v;wIn=getE().weight!=null?String(kg2disp(getE().weight)):'';render();return}
+    if(a==='prevDay'){DATE=shiftD(DATE,-1);wIn=getE().weight!=null?String(kg2disp(getE().weight)):'';render();return}
+    if(a==='nextDay'){if(DATE<today()){DATE=shiftD(DATE,1);wIn=getE().weight!=null?String(kg2disp(getE().weight)):'';render()};return}
+    if(a==='goToday'){DATE=today();wIn=getE().weight!=null?String(kg2disp(getE().weight)):'';render();return}
+    if(a==='saveW'){const raw=document.getElementById('wIn')?.value||'';const kg=disp2kg(raw);mutE(e=>{e.weight=kg});return}
     if(a==='addWater'){mutE(e=>{e.water=(e.water||0)+1});return}
     if(a==='subWater'){mutE(e=>{e.water=Math.max(0,(e.water||0)-1)});return}
     if(a==='setMType'){mType=v;render();return}
@@ -729,19 +1561,39 @@ function bindEvents(){
     if(a==='delMeal'){mutE(e=>{e.meals=e.meals.filter(m=>String(m.id)!==id)});return}
     if(a==='savePhoto'){if(!photoPrev)return;const pid=await storeImg(photoPrev);photoPrev='';mutE(e=>{e.photos=[...e.photos,pid]});return}
     if(a==='delPhoto'){mutE(e=>{e.photos=e.photos.filter(x=>x!==id)});await delImg(id);return}
-    if(a==='aiRec'){await doAiRec();return}   // ← 新增：AI 识别
-    if(a==='addP'){const n=(document.getElementById('pN')?.value||'').trim();if(!n)return;const q=parseFloat(document.getElementById('pQ')?.value||'');pN='';pQ='';pE='';save({...S,pantry:[...S.pantry,{id:Date.now(),name:n,qty:isNaN(q)?null:q,unit:pU,exp:document.getElementById('pE')?.value||null}]});return}
+    if(a==='aiRec'){await doAiRec();return}
+    if(a==='draftType'){if(aiDraft){aiDraft.type=v;render()}return}
+    if(a==='draftDel'){if(aiDraft){aiDraft.items.splice(+id,1);render()}return}
+    if(a==='draftAddItem'){if(aiDraft){aiDraft.items.push({name:'',qty:'',cal:''});render()}return}
+    if(a==='draftCancel'){aiDraft=null;render();return}
+    if(a==='draftConfirm'){await confirmDraft();return}
+    if(a==='addP'){const n=(document.getElementById('pN')?.value||'').trim();if(!n)return;const q=parseFloat(document.getElementById('pQ')?.value||'');let unit=pU;if(pU==='自定义'){unit=(pUcustom||'').trim()||'个'}pN='';pQ='';pE='';pUcustom='';save({...S,pantry:[...S.pantry,{id:Date.now(),name:n,qty:isNaN(q)?null:q,unit,exp:document.getElementById('pE')?.value||null}]});return}
     if(a==='stepP'){const d=parseFloat(v);save({...S,pantry:S.pantry.map(x=>x.id==id?{...x,qty:x.qty==null?null:Math.max(0,Math.round((x.qty+d)*10)/10)}:x)});return}
     if(a==='delP'){save({...S,pantry:S.pantry.filter(x=>String(x.id)!==id)});return}
     if(a==='addW'){const t=(document.getElementById('wiIn')?.value||'').trim();if(!t)return;wiTxt='';save({...S,wishlist:[...S.wishlist,{id:Date.now(),name:t}]});return}
     if(a==='delW'){save({...S,wishlist:S.wishlist.filter(x=>String(x.id)!==id)});return}
     if(a==='calcKey'){pressCalcKey(v);return}
-    if(a==='addE'){const amt=calcAmount(document.getElementById('eAmt')?.value||'');if(isNaN(amt)||amt<=0)return;const note=(document.getElementById('eNote')?.value||'').trim();const dt=document.getElementById('eDate')?.value||today();eAmt='';eNote='';save({...S,expenses:[{id:Date.now(),amount:Math.round(amt*100)/100,cat:eCat,note,date:dt},...S.expenses]});return}
+    if(a==='addE'){const amt=calcAmount(document.getElementById('eAmt')?.value||'');if(isNaN(amt)||amt<=0)return;const note=(document.getElementById('eNote')?.value||'').trim();const dt=document.getElementById('eDate')?.value||today();let imgId=null;if(eImg){imgId=await storeImg(eImg)}const rec={id:Date.now(),amount:Math.round(amt*100)/100,cat:eCat,note,date:dt,tag:eTag||'',img:imgId};eAmt='';eNote='';eTag='';eImg='';save({...S,expenses:[rec,...S.expenses]});return}
     if(a==='setECat'){eCat=v;render();return}
+    if(a==='setETag'){eTag=(eTag===v?'':v);render();return}
+    if(a==='addBillTag'){const t=prompt('新标签名：');if(t&&t.trim()){const tg=t.trim();if(!(S.billTags||[]).includes(tg)){save({...S,billTags:[...(S.billTags||[]),tg]})}}return}
+    if(a==='clearEImg'){eImg='';render();return}
     if(a==='delE'){save({...S,expenses:S.expenses.filter(x=>String(x.id)!==id)});return}
+    if(a==='toggleDay'){billCollapse[id]=!billCollapse[id];render();return}
+    if(a==='editE'){const x=S.expenses.find(z=>String(z.id)===id);if(x){editExp={...x};for(const k of(x.img?[x.img]:[]))await loadImg(k);render()}return}
+    if(a==='ee_cancel'){editExp=null;render();return}
+    if(a==='ee_cat'){if(editExp){editExp.cat=v;render()}return}
+    if(a==='ee_tag'){if(editExp){editExp.tag=(editExp.tag===v?'':v);render()}return}
+    if(a==='ee_clearTag'){if(editExp){editExp.tag='';render()}return}
+    if(a==='ee_clearImg'){if(editExp){editExp.img=null;render()}return}
+    if(a==='ee_delete'){if(editExp){const eid=editExp.id;editExp=null;save({...S,expenses:S.expenses.filter(z=>z.id!==eid)})}return}
+    if(a==='ee_save'){if(editExp){const amt=calcAmount(document.getElementById('ee_amt')?.value||'');const note=(document.getElementById('ee_note')?.value||'').trim();const dt=document.getElementById('ee_date')?.value||editExp.date;const upd={...editExp,amount:isNaN(amt)?editExp.amount:Math.round(amt*100)/100,note,date:dt};editExp=null;save({...S,expenses:S.expenses.map(z=>z.id===upd.id?upd:z)})}return}
     if(a==='prevMon'){eMon=shiftM(eMon,-1);render();return}
     if(a==='nextMon'){if(eMon<today().slice(0,7)){eMon=shiftM(eMon,1);render()};return}
-    if(a==='addList'){const t=(document.getElementById('nList')?.value||'').trim();if(!t)return;nList='';save({...S,lists:[{id:Date.now(),title:t,items:[]},...S.lists]});return}
+    if(a==='addList'){const t=(document.getElementById('nList')?.value||'').trim();if(!t)return;const ic=nListIcon;nList='';nListIcon='📝';save({...S,lists:[{id:Date.now(),title:t,icon:ic,items:[]},...S.lists]});return}
+    if(a==='pickListIcon'){nListIcon=v;render();return}
+    if(a==='setListMode'){save({...S,listMode:v});return}
+    if(a==='toggleCollapse'){listCollapse[id]=!listCollapse[id];render();return}
     if(a==='delList'){save({...S,lists:S.lists.filter(l=>String(l.id)!==id)});return}
     if(a==='addItem'){const iid=el.dataset.lid;const inEl=document.getElementById('li_'+iid);const t=(inEl?.value||'').trim();if(!t)return;liIn[iid]='';save({...S,lists:S.lists.map(l=>String(l.id)===iid?{...l,items:[...l.items,{id:Date.now(),text:t,done:false}]}:l)});return}
     if(a==='toggleItem'){const iid=el.dataset.lid;save({...S,lists:S.lists.map(l=>String(l.id)===iid?{...l,items:l.items.map(it=>String(it.id)===id?{...it,done:!it.done}:it)}:l)});return}
@@ -752,6 +1604,7 @@ function bindEvents(){
     if(a==='setJTape'){jTape=v;render();return}
     if(a==='setJSt'){jSt=v==='null'?null:v;render();return}
     if(a==='delJImg'){jImgs=jImgs.filter((_,i)=>String(i)!==id);render();return}
+    if(a==='delMeImg'){meImgs=meImgs.filter((_,i)=>String(i)!==id);render();return}
     if(a==='addJ'){
       const t=(document.getElementById('jTxt')?.value||'').trim();
       const ids=[];for(const u of jImgs){const pid=await storeImg(u);if(pid)ids.push(pid)}
@@ -778,25 +1631,82 @@ function bindEvents(){
     if(a==='clearAccent'){save({...S,accent:null});return}
     if(a==='clearBg'){save({...S,bgc:null});return}
     if(a==='setCur'){save({...S,cur:v});return}
+    if(a==='setWunit'){S.wunit=v;wIn=getE().weight!=null?String(kg2disp(getE().weight)):'';save({...S});return}
     if(a==='saveKey'){   // ← 新增：保存 API Key
       const k=(document.getElementById('apiKeyIn')?.value||'').trim();
       save({...S,apiKey:k});
       return
     }
+    if(a==='dictDl'){await downloadDict();return}
+    if(a==='startReview'){startReview(v);return}
+    if(a==='reviewFlip'){reviewFlipped=true;render();return}
+    if(a==='reviewGrade'){gradeWord(+v);return}
+    if(a==='reviewCheck'){
+      const ans=(document.getElementById('spellInput')?.value||'').trim().toLowerCase();
+      reviewInput=document.getElementById('spellInput')?.value||'';
+      const correct=reviewQueue[reviewIdx]?.word?.toLowerCase();
+      if(ans===correct)gradeWord(3);
+      else{reviewFlipped=true;render()}
+      return
+    }
+    if(a==='closeReview'){reviewMode=null;reviewDone=false;reviewQueue=[];render();return}
+    if(a==='addVocab'){const w=(document.getElementById('vAddInput')?.value||'').trim();if(w)await addVocab(w);return}
+    if(a==='setVView'){vView=v;render();return}
+    if(a==='setVSort'){vSort=v;render();return}
+    if(a==='openVocabDetail'){vDetail={word:v};_detailCache={};render();return}
+    if(a==='closeVocabDetail'){vDetail=null;_detailCache={};render();return}
+    if(a==='delVocab'){if(confirm('从词库移除 "'+id+'"？')){S.vocab=S.vocab.filter(x=>x.word!==id);delete S.vocabNotes[id];delete S.vocabAi[id];vDetail=null;save({...S})};return}
+    if(a==='speak'){speakWord(v);ev.stopPropagation&&ev.stopPropagation();return}
+    if(a==='saveVocabNote'){const txt=document.getElementById('vNote')?.value||'';S.vocabNotes[id]=txt;save({...S});return}
+    if(a==='aiVocabExplain'){await aiVocabExplain(id,el.dataset.force);return}
+    if(a==='aiSynonyms'){await aiSynonyms(id,el.dataset.force);return}
+    if(a==='openStats'){showStats=true;render();return}
+    if(a==='closeStats'){showStats=false;render();return}
+    if(a==='openBulk'){showBulk=true;bulkText='';render();return}
+    if(a==='closeBulk'){showBulk=false;render();return}
+    if(a==='confirmBulk'){
+      const lines=(document.getElementById('bulkInput')?.value||bulkText).split(/[\n,，；;\s]+/).map(w=>w.trim().toLowerCase()).filter(w=>w&&/^[a-z]/.test(w)&&w.length>1);
+      const unique=[...new Set(lines)].filter(w=>!S.vocab.find(v=>v.word===w));
+      if(!unique.length){alert('没有新词可添加。');return}
+      const newItems=unique.map(word=>({word,added:Date.now()+Math.random(),box:1,nextReview:Date.now(),lastReview:null,reviewCount:0,tags:[],interval:1,easeFactor:2.5}));
+      showBulk=false;bulkText='';
+      save({...S,vocab:[...newItems,...S.vocab]});
+      return
+    }
+    if(a==='addVocabTag'){
+      const t=(document.getElementById('tagInput')?.value||'').trim();
+      if(!t||!id)return;
+      S.vocab=S.vocab.map(v=>v.word===id&&!(v.tags||[]).includes(t)?{...v,tags:[...(v.tags||[]),t]}:v);
+      save({...S});return
+    }
+    if(a==='removeVocabTag'){
+      S.vocab=S.vocab.map(v=>v.word===id?{...v,tags:(v.tags||[]).filter(t=>t!==v)}:v);
+      // 用 data-v 作为 tag 值
+      const tag=el.dataset.v;
+      S.vocab=S.vocab.map(v=>v.word===id?{...v,tags:(v.tags||[]).filter(t=>t!==tag)}:v);
+      save({...S});return
+    }
     if(a==='exportData'){await exportData();return}
   };
   app.oninput=ev=>{
     const el=ev.target;
+    if(el.dataset&&el.dataset.a==='draftEdit'&&aiDraft){const i=+el.dataset.id,fld=el.dataset.f;if(aiDraft.items[i]){aiDraft.items[i][fld]=el.value}return}
     if(el.id==='wIn'){wIn=el.value}
     if(el.id==='mIn'){mTxt=el.value}
     if(el.id==='pN'){pN=el.value}
     if(el.id==='pQ'){pQ=el.value}
     if(el.id==='pE'){pE=el.value}
-    if(el.id==='pU'){pU=el.value}
+    if(el.id==='pU'){pU=el.value;render();return}
+    if(el.id==='pUcustom'){pUcustom=el.value}
     if(el.id==='wiIn'){wiTxt=el.value}
     if(el.id==='nList'){nList=el.value}
     if(el.id==='eAmt'){eAmt=el.value}
     if(el.id==='eNote'){eNote=el.value}
+    if(el.id==='eSearch'){eSearch=el.value;clearTimeout(window._st);window._st=setTimeout(render,250);return}
+    if(el.id==='vAddInput'){vAddInput=el.value}
+    if(el.id==='vSearch'){vSearch=el.value;clearTimeout(window._vs);window._vs=setTimeout(render,250);return}
+    if(el.id==='spellInput'){reviewInput=el.value}
+    if(el.id==='bulkInput'){bulkText=el.value;clearTimeout(window._bk);window._bk=setTimeout(render,400);return}
     if(el.id==='eDate'){eDate=el.value}
     if(el.id==='jTxt'){jTxt=el.value}
     if(el.id==='meTxt'){meTxt=el.value}
@@ -806,6 +1716,7 @@ function bindEvents(){
   };
   app.onchange=async ev=>{
     const el=ev.target;
+    if(el.id==='pU'){pU=el.value;render();return}
     if(el.id==='capBtn'||el.id==='albBtn'){
       if(!el.files||!el.files.length)return;
       // 拍照和相册都走预览流程，这样 AI 识别按钮才会出现
@@ -814,7 +1725,38 @@ function bindEvents(){
     }
     if(el.id==='jImgBtn'){if(!el.files||!el.files.length)return;const urls=[];for(const f of el.files){try{const u=await compressFile(f);urls.push(u)}catch(err){}}el.value='';jImgs=[...jImgs,...urls];render();return}
     if(el.id==='meImgBtn'){if(!el.files||!el.files.length)return;const urls=[];for(const f of el.files){try{const u=await compressFile(f);urls.push(u)}catch(err){}}el.value='';meImgs=[...meImgs,...urls];render();return}
+    if(el.id==='eImgBtn'){if(!el.files||!el.files.length)return;try{const u=await compressFile(el.files[0]);eImg=u;el.value='';render()}catch(err){}return}
+    if(el.id==='ee_imgBtn'){if(!el.files||!el.files.length||!editExp)return;try{const u=await compressFile(el.files[0]);const id=await storeImg(u);editExp.img=id;el.value='';render()}catch(err){}return}
     if(el.id==='importBtn'){if(!el.files||!el.files.length)return;await importData(el.files[0]);return}
+  };
+  // 清单拖拽排序
+  app.ondragstart=ev=>{const t=ev.target.closest('[data-drag]');if(t){dragListId=t.dataset.drag;ev.dataTransfer.effectAllowed='move';try{ev.dataTransfer.setData('text/plain',dragListId)}catch(e){}}};
+  app.ondragover=ev=>{const t=ev.target.closest('[data-drag]');if(t&&dragListId){ev.preventDefault();ev.dataTransfer.dropEffect='move'}};
+  app.ondrop=ev=>{
+    const t=ev.target.closest('[data-drag]');
+    if(!t||!dragListId)return;
+    ev.preventDefault();
+    const targetId=t.dataset.drag;
+    if(String(targetId)===String(dragListId)){dragListId=null;return}
+    const arr=[...S.lists];
+    const from=arr.findIndex(l=>String(l.id)===String(dragListId));
+    const to=arr.findIndex(l=>String(l.id)===String(targetId));
+    if(from<0||to<0){dragListId=null;return}
+    const[moved]=arr.splice(from,1);
+    arr.splice(to,0,moved);
+    dragListId=null;
+    save({...S,lists:arr})
+  };
+  app.ondragend=()=>{dragListId=null};
+  // 触摸滑动：划卡复习模式
+  app.ontouchstart=ev=>{const t=ev.touches[0];_txStart={x:t.clientX,y:t.clientY}};
+  app.ontouchend=ev=>{
+    if(!_txStart||reviewMode!=='swipe'||!reviewFlipped)return;
+    const t=ev.changedTouches[0];const dx=t.clientX-_txStart.x,dy=t.clientY-_txStart.y;
+    _txStart=null;
+    if(Math.abs(dx)>80&&Math.abs(dx)>Math.abs(dy)*1.5){
+      if(dx>0)gradeWord(2);else gradeWord(0);
+    }
   };
 }
 
