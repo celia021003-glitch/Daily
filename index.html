@@ -1027,20 +1027,20 @@ function renderVocab(){
   const vTotal=S.vocab.length;
 
   // 今日复习卡
-  const reviewCard=total>0?card('',`
+  const reviewCard=vTotal>0?card('',`
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
       <div>
         <div style="font-family:${SR};font-size:17px;font-weight:600">今日复习</div>
-        <div style="font-size:13px;color:${C.muted};margin-top:3px">${vDue>0?`<span style="color:${C.w};font-weight:600">${due} 个词</span> 待复习`:'暂无待复习，继续学新词吧 🌿'}</div>
+        <div style="font-size:13px;color:${C.muted};margin-top:3px">${vDue>0?`<span style="color:${C.w};font-weight:600">${vDue} 个词</span> 待复习`:'暂无待复习，继续学新词吧 🌿'}</div>
       </div>
       ${vDue>0?`<div style="display:flex;gap:8px">
-        <button data-a="startReview" data-v="flip" style="${BS(C.p,'padding:10px 14px;font-size:13px')}">临摆</button>
+        <button data-a="startReview" data-v="flip" style="${BS(C.p,'padding:10px 14px;font-size:13px')}">翻卡</button>
         <button data-a="startReview" data-v="swipe" style="${BS(C.g,'padding:10px 14px;font-size:13px')}">划卡</button>
         <button data-a="startReview" data-v="spell" style="${BS(C.w,'padding:10px 14px;font-size:13px')}">拼写</button>
-      </div>`:`<button data-a="startReview" data-v="flip" style="${BS(C.line,'padding:10px 14px;font-size:13px;color:'+C.muted)}" disabled>临摆</button>`}
+      </div>`:`<button data-a="startReview" data-v="flip" style="${BS(C.line,'padding:10px 14px;font-size:13px;color:'+C.muted)}" disabled>翻卡</button>`}
     </div>
     <div style="display:flex;gap:8px;margin-top:12px">
-      <button data-a="openStats" style="${BS(C.pS,'flex:1;color:'+C.p+';font-size:13px')}">📊 ${streak>0?'🔥'+streak+'天连打·':''}统计</button>
+      <button data-a="openStats" style="${BS(C.pS,'flex:1;color:'+C.p+';font-size:13px')}">📊 ${streak>0?'🔥'+streak+'天连打卡·':''}统计</button>
       <button data-a="openBulk" style="${BS(C.gS,'flex:1;color:'+C.g+';font-size:13px')}">📥 批量导入</button>
     </div>
   ${vTotal>0?`<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
