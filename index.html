@@ -287,7 +287,12 @@ function mutE(fn){
 }
 async function loadState(){
   try{const v=await idb.get(SKEY);if(v){const d=JSON.parse(v);S={...S,...d,period:d.period||{days:{},syms:{}},expenses:d.expenses||[],frags:d.frags||[],apiKey:d.apiKey||'',wunit:d.wunit||'kg',billTags:(d.billTags&&d.billTags.length)?d.billTags:['必需','想要','请客','囤货'],listMode:d.listMode||'fold',vocab:d.vocab||[],vocabNotes:d.vocabNotes||{},vocabAi:d.vocabAi||{},vocabSynonyms:d.vocabSynonyms||{},aiUsage:d.aiUsage||{count:0,month:''},reviewHistory:d.reviewHistory||{}}}}catch(e){}
-  try{const has=await dictDB.has();S.dictReady=has}catch(e){}
+  try{
+    const dict=await dictDB.loadAll();
+    const words=dictSize(dict);
+    if(dict&&words>=DICT_MIN_WORDS){_dictMem=dict;S.dictReady=true}
+    else{if(dict)await dictDB.clear();_dictMem=null;S.dictReady=false}
+  }catch(e){S.dictReady=false}
   wIn=getE().weight!=null?String(kg2disp(getE().weight)):'';
   render()
 }
@@ -710,6 +715,19 @@ function renderList(){
 // 词典 URL：托管在用户的 GitHub 仓库根目录
 const DICT_URL='./ecdict.json';
 const DICT_VERSION='v1';
+const DICT_MIN_WORDS=10000;
+
+function dictSize(obj){
+  if(!obj||typeof obj!=='object')return 0;
+  try{return Object.keys(obj).length}catch(e){return 0}
+}
+
+async function resetDict(){
+  await dictDB.clear();
+  _dictMem=null;
+  S.dictReady=false;
+  save({...S});
+}
 
 // 查词：从内存词典查询，找不到尝试去复数/时态后缀
 async function lookupWord(w){
@@ -768,6 +786,8 @@ async function downloadDict(){
     setDictProgress(65);
     await tick();
     const data=JSON.parse(text);
+    const words=dictSize(data);
+    if(words<DICT_MIN_WORDS)throw new Error('词典文件不完整：当前只有 '+words+' 个词条。请上传完整的 ecdict.json 到 GitHub 仓库根目录后再下载。');
     setDictProgress(75);
     await tick();
     // 3. 一次性存入数据库（75-95%）—— 整个对象作为一个值，瞬间完成
@@ -1069,6 +1089,12 @@ function renderVocab(){
     </div>
     <div style="font-size:11px;color:${C.faint};margin-top:8px">输入后会自动查询词典并添加到下方词库。</div>
   `);
+  const dictTool=card('词典状态',`
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+      <div style="font-size:12px;color:${C.muted};line-height:1.7">如果单词一直查不到，通常是词典文件不完整或浏览器缓存了旧词典。</div>
+      <button data-a="dictReset" style="${BS(C.line,'color:'+C.muted+';font-size:12px;padding:9px 12px')}">重新下载词典</button>
+    </div>
+  `);
 
   const due=S.vocab.filter(v=>v.nextReview<=Date.now()).length;
   const filterBar=`<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
@@ -1098,7 +1124,7 @@ function renderVocab(){
   }).join('');
 
   const emptyTxt=S.vocab.length===0?'词库还是空的，添加第一个词开始吧。':(search?'没有匹配的词。':'没有符合筛选的词。');
-  return reviewCard+addCard+filterBar+searchBar+(items||empty(emptyTxt))
+  return reviewCard+addCard+dictTool+filterBar+searchBar+(items||empty(emptyTxt))
 }
 
 // ═══════════════════════ 统计 / 标签 / 导入 / 同义词 ═══════════════════════
@@ -1689,6 +1715,7 @@ function bindEvents(){
       return
     }
     if(a==='dictDl'){await downloadDict();return}
+    if(a==='dictReset'){if(confirm('清除本机已缓存的词典并重新下载？'))await resetDict();return}
     if(a==='startReview'){startReview(v);return}
     if(a==='reviewFlip'){reviewFlipped=true;render();return}
     if(a==='reviewGrade'){gradeWord(+v);return}
