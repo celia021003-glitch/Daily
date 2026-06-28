@@ -67,8 +67,31 @@ const ls={
 function openDB(){
   if(!canIDB)return Promise.reject(new Error('no idb'));
   if(_db)return Promise.resolve(_db);
-  return new Promise((res,rej)=>{const r=indexedDB.open('xbn1',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>{_db=r.result;res(_db)};r.onerror=()=>rej(r.error)});
+  return new Promise((res,rej)=>{
+    const r=indexedDB.open('xbn1',2);
+    r.onupgradeneeded=ev=>{
+      const db=r.result;
+      if(!db.objectStoreNames.contains('kv'))db.createObjectStore('kv');
+      if(!db.objectStoreNames.contains('dict'))db.createObjectStore('dict');
+    };
+    r.onsuccess=()=>{_db=r.result;res(_db)};
+    r.onerror=()=>rej(r.error)
+  });
 }
+const dictDB={
+  get:w=>openDB().then(db=>new Promise(res=>{const r=db.transaction('dict').objectStore('dict').get(w);r.onsuccess=()=>res(r.result??null);r.onerror=()=>res(null)})).catch(()=>null),
+  set:(w,v)=>openDB().then(db=>new Promise(res=>{const r=db.transaction('dict','readwrite').objectStore('dict').put(v,w);r.onsuccess=()=>res(true);r.onerror=()=>res(false)})).catch(()=>false),
+  count:()=>openDB().then(db=>new Promise(res=>{const r=db.transaction('dict').objectStore('dict').count();r.onsuccess=()=>res(r.result||0);r.onerror=()=>res(0)})).catch(()=>0),
+  clear:()=>openDB().then(db=>new Promise(res=>{const r=db.transaction('dict','readwrite').objectStore('dict').clear();r.onsuccess=()=>res(true);r.onerror=()=>res(false)})).catch(()=>false),
+  putBatch:async(entries)=>{
+    const db=await openDB();
+    return new Promise(res=>{
+      const tx=db.transaction('dict','readwrite');const os=tx.objectStore('dict');
+      for(const[w,v]of entries)os.put(v,w);
+      tx.oncomplete=()=>res(true);tx.onerror=()=>res(false);
+    });
+  }
+};
 const idb={
   get:k=>openDB().then(db=>new Promise(res=>{const r=db.transaction('kv').objectStore('kv').get(k);r.onsuccess=()=>res(r.result??null);r.onerror=()=>res(null)})).catch(()=>ls.get(k)),
   set:(k,v)=>openDB().then(db=>new Promise(res=>{const r=db.transaction('kv','readwrite').objectStore('kv').put(v,k);r.onsuccess=()=>res(true);r.onerror=()=>res(false)})).catch(()=>ls.set(k,v)),
@@ -1506,7 +1529,7 @@ function render(){
       </div>`
   }
   const isMe=TAB==='me';
-  const tabs=[['today','今日','🍃'],['food','食材','🧺'],['bills','账单','💰'],['list','清单','✓'],['journal','手帐','📖'],['me','我','✦']];
+  const tabs=[['today','今日','🍃'],['food','食材','🧺'],['bills','账单','💰'],['list','清单','✓'],['vocab','单词','📖'],['journal','手帐','✍️'],['me','我','✦']];
   const nav=`<div style="position:fixed;left:0;right:0;bottom:0;z-index:10;height:74px;display:flex;justify-content:center;background:${isMe?'rgba(11,10,30,.75)':C.card+'EE'};backdrop-filter:blur(12px);border-top:1px solid ${isMe?'rgba(255,255,255,.08)':C.line};padding-bottom:12px">
     ${tabs.map(([id,label,icon])=>{const on=TAB===id;const col=isMe?(on?'#fff':'#7E79A8'):(on?C.p:C.faint);return`<button data-a="setTab" data-v="${id}" style="flex:1;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;color:${col};padding-top:10px"><span style="font-size:17px;opacity:${on?1:.55}">${icon}</span><span style="font-size:10px;font-weight:${on?600:400}">${label}</span></button>`}).join('')}
   </div>`;
