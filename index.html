@@ -146,7 +146,7 @@ const idb={
 };
 
 // ═══════════════════════ STATE ═══════════════════════
-let S={entries:{},pantry:[],wishlist:[],lists:[],journal:[],frags:[],period:{days:{},syms:{}},expenses:[],theme:'mist',accent:null,accentA:0.13,bgc:null,cur:'$',apiKey:'',wunit:'kg',billTags:['必需','想要','请客','囤货'],listMode:'fold',vocab:[],vocabNotes:{},vocabAi:{},vocabSynonyms:{},aiUsage:{count:0,month:''},reviewHistory:{},dictReady:false,recipeFavs:[],recipeNotes:{},recipeCustom:[],recipeLinks:[],appName:'饮食 & 体重小本',appKicker:'daily log',appTitle:'小本',labels:{...TAB_LABELS}};
+let S={entries:{},pantry:[],wishlist:[],lists:[],journal:[],frags:[],period:{days:{},syms:{}},expenses:[],theme:'mist',accent:null,accentA:0.13,bgc:null,cur:'$',apiKey:'',wunit:'kg',billTags:['必需','想要','请客','囤货'],listMode:'fold',vocab:[],vocabNotes:{},vocabAi:{},vocabSynonyms:{},aiUsage:{count:0,month:''},reviewHistory:{},dictReady:false,recipeFavs:[],recipeNotes:{},recipeCustom:[],recipeLinks:[],appName:'饮食 & 体重小本',appKicker:'daily log',appTitle:'',labels:{...TAB_LABELS}};
 let IC={};
 let TAB='today',DATE=dstr(new Date());
 let wIn='',mTxt='',mType='早餐';
@@ -323,7 +323,7 @@ async function loadState(){
     const v=await idb.get(SKEY);
     if(v){
       const d=JSON.parse(v);
-      S={...S,...d,period:d.period||{days:{},syms:{}},expenses:d.expenses||[],frags:d.frags||[],apiKey:d.apiKey||'',wunit:d.wunit||'kg',billTags:(d.billTags&&d.billTags.length)?d.billTags:['必需','想要','请客','囤货'],listMode:d.listMode||'fold',vocab:d.vocab||[],vocabNotes:d.vocabNotes||{},vocabAi:d.vocabAi||{},vocabSynonyms:d.vocabSynonyms||{},aiUsage:d.aiUsage||{count:0,month:''},reviewHistory:d.reviewHistory||{},recipeFavs:d.recipeFavs||[],recipeNotes:d.recipeNotes||{},recipeCustom:d.recipeCustom||[],recipeLinks:d.recipeLinks||[],appName:d.appName||'饮食 & 体重小本',appKicker:d.appKicker||'daily log',appTitle:d.appTitle||'小本',labels:{...TAB_LABELS,...(d.labels||{})}}
+      S={...S,...d,period:d.period||{days:{},syms:{}},expenses:d.expenses||[],frags:d.frags||[],apiKey:d.apiKey||'',wunit:d.wunit||'kg',billTags:(d.billTags&&d.billTags.length)?d.billTags:['必需','想要','请客','囤货'],listMode:d.listMode||'fold',vocab:d.vocab||[],vocabNotes:d.vocabNotes||{},vocabAi:d.vocabAi||{},vocabSynonyms:d.vocabSynonyms||{},aiUsage:d.aiUsage||{count:0,month:''},reviewHistory:d.reviewHistory||{},recipeFavs:d.recipeFavs||[],recipeNotes:d.recipeNotes||{},recipeCustom:d.recipeCustom||[],recipeLinks:d.recipeLinks||[],appName:d.appName||'饮食 & 体重小本',appKicker:d.appKicker||'daily log',appTitle:(d.appTitle&&d.appTitle!=='小本')?d.appTitle:'',labels:{...TAB_LABELS,...(d.labels||{})}}
     }
   }catch(e){}
   try{
@@ -400,6 +400,7 @@ function xbtn(action,id){return`<button data-a="${action}" data-id="${id}" style
 function statBox(label,val,tone,bg){return`<div style="flex:1;background:${bg};border-radius:16px;padding:12px 14px;border:1px solid rgba(255,255,255,.5)"><div style="font-size:11px;color:${C.muted};margin-bottom:4px">${e(label)}</div><div style="font-family:${SR};font-size:22px;font-weight:600;color:${tone}">${e(val)}</div></div>`}
 function empty(txt){return`<div style="text-align:center;color:${C.faint};font-size:13px;padding:18px 0">${e(txt)}</div>`}
 function lab(id){return (S.labels&&S.labels[id])||TAB_LABELS[id]||id}
+function appShortTitle(){return (S.appTitle&&S.appTitle.trim())||S.appName||'小本'}
 function foodIcon(n){
   const s=String(n||'');
   if(/[鸡蛋蛋]/.test(s))return'🥚';if(/[牛猪羊肉鸡鸭鱼虾蟹]/.test(s))return'🥩';if(/[奶酸奶芝士]/.test(s))return'🥛';
@@ -1782,11 +1783,12 @@ function renderSettings(){
     <span style="font-size:12px;color:${C.muted};width:42px">${TAB_LABELS[k]}</span>
     <input data-label="${k}" value="${e(lab(k))}" style="${IS('flex:1;padding:8px 10px;font-size:13px')}">
   </div>`).join('');
+  const titleValue=(S.appTitle&&S.appTitle!=='小本')?S.appTitle:'';
   const textCard=card('文字自定义',`
     <div style="font-size:12px;color:${C.muted};line-height:1.7;margin-bottom:10px">这里改的是页面上最常出现的名字和底部标签。想好新名字后随时回来换。</div>
     <input id="appNameIn" value="${e(S.appName||'')}" placeholder="页面主标题" style="${IS('margin-bottom:8px')}">
     <input id="appKickerIn" value="${e(S.appKicker||'')}" placeholder="顶部小字，比如 daily log" style="${IS('margin-bottom:8px')}">
-    <input id="appTitleIn" value="${e(S.appTitle||'')}" placeholder="浏览器/添加到桌面的名字" style="${IS('margin-bottom:12px')}">
+    <input id="appTitleIn" value="${e(titleValue)}" placeholder="浏览器/添加到桌面的名字；留空则跟随主标题" style="${IS('margin-bottom:12px')}">
     <div style="font-size:12px;color:${C.muted};margin-bottom:8px">底部标签</div>
     ${labelInputs}
     <div style="display:flex;gap:8px;margin-top:10px">
@@ -1858,9 +1860,9 @@ function render(){
   C=resolveC();
   document.body.style.background=TAB==='me'?'#0B0A1E':C.bg;
   document.body.style.color=C.ink;
-  document.title=S.appTitle||S.appName||'小本';
+  document.title=appShortTitle();
   const appleTitle=document.querySelector('meta[name="apple-mobile-web-app-title"]');
-  if(appleTitle)appleTitle.setAttribute('content',S.appTitle||S.appName||'小本');
+  if(appleTitle)appleTitle.setAttribute('content',appShortTitle());
   let main='';
   if(TAB==='me'){main=renderMe()}
   else{
@@ -2044,10 +2046,10 @@ function bindEvents(){
     if(a==='saveTextPrefs'){
       const labels={...TAB_LABELS};
       document.querySelectorAll('[data-label]').forEach(inp=>{labels[inp.dataset.label]=(inp.value||TAB_LABELS[inp.dataset.label]||'').trim()});
-      save({...S,appName:(document.getElementById('appNameIn')?.value||'').trim()||'饮食 & 体重小本',appKicker:(document.getElementById('appKickerIn')?.value||'').trim()||'daily log',appTitle:(document.getElementById('appTitleIn')?.value||'').trim()||'小本',labels});
+      save({...S,appName:(document.getElementById('appNameIn')?.value||'').trim()||'饮食 & 体重小本',appKicker:(document.getElementById('appKickerIn')?.value||'').trim()||'daily log',appTitle:(document.getElementById('appTitleIn')?.value||'').trim(),labels});
       return
     }
-    if(a==='resetTextPrefs'){save({...S,appName:'饮食 & 体重小本',appKicker:'daily log',appTitle:'小本',labels:{...TAB_LABELS}});return}
+    if(a==='resetTextPrefs'){save({...S,appName:'饮食 & 体重小本',appKicker:'daily log',appTitle:'',labels:{...TAB_LABELS}});return}
     if(a==='dictDl'){await downloadDict();return}
     if(a==='dictReset'){if(confirm('清除本机已缓存的词典并重新下载？'))await resetDict();return}
     if(a==='startReview'){startReview(v);return}
