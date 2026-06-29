@@ -194,7 +194,7 @@ let wIn='',mTxt='',mType='早餐';
 let dName='',dType='咖啡',dSize='',dSugar='正常糖',dCaf='',dNote='',dSticker='';
 let pN='',pQ='',pU='个',pE='',pUcustom='',pSticker='',nutriGoal='antiInflamm';
 let wiTxt='';
-let rSearch='',rWish='',rMode='mine',rAiIdea='';
+let rSearch='',rWish='',rMode='mine',rAiIdea='',rLinkTitle='',rLinkUrl='',rLinkNote='';
 let nList='',nListIcon='📝',liIn={},liDue={},liImp={};
 let listCollapse={},dragListId=null;
 let jTxt='',jMood='✨',jFont='kai',jHi=null,jTape=TAPES[0],jSt=null,jImgs=[];
@@ -884,9 +884,9 @@ function renderRecipes(){
   scored=scored.sort((a,b)=>b.score-a.score||a.time-b.time);
   const pantryTxt=(S.pantry||[]).map(x=>x.name).slice(0,10).join('、')||'还没有添加库存食材';
   const hero=card('',`<div style="background:linear-gradient(135deg,${C.g},${C.p});border-radius:22px;padding:22px;color:#fff;margin:-4px -6px 14px"><div style="font-size:12px;letter-spacing:2px;opacity:.75;text-transform:uppercase">recipe finder</div><div style="font-family:${SR};font-size:31px;font-weight:700;margin-top:4px">今天吃什么</div><div style="font-size:14px;opacity:.84;margin-top:6px">搜索、推荐、收藏和备注都保存在本地。只有主动点 AI 灵感才调用 API。</div><div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">${pill(rMode==='mine',C.w,C.wS,'用现有食材','setRMode','mine')}${pill(rMode==='all',C.w,C.wS,'全部菜谱','setRMode','all')}${pill(rMode==='fav',C.w,C.wS,'收藏','setRMode','fav')}${pill(rMode==='quick',C.w,C.wS,'15分钟','setRMode','quick')}${pill(rMode==='links',C.w,C.wS,'链接记录','setRMode','links')}</div></div><div style="display:flex;gap:8px;flex-wrap:wrap">${statBox('库存食材',String((S.pantry||[]).length),C.g,C.gS)}${statBox('收藏菜谱',String((S.recipeFavs||[]).length),C.w,C.wS)}${statBox('我的改造',String((S.recipeCustom||[]).length),C.p,C.pS)}</div>`);
-  const controls=card('搜索和偏好',`<input id="rSearch" value="${e(rSearch)}" placeholder="搜索菜名、食材、标签，比如 鸡蛋 / 快手 / 低脂" style="${IS('margin-bottom:8px')}"><input id="rWish" value="${e(rWish)}" placeholder="想吃的食材：虾仁、土豆、番茄…" style="${IS()}"><div style="font-size:12px;color:${C.muted};line-height:1.7;margin-top:10px">已有：${e(pantryTxt)}</div>`);
+  const controls=card('搜索和偏好',`<input id="rSearch" value="${e(rSearch)}" placeholder="搜索菜名、食材、标签，比如 鸡蛋 / 快手 / 低脂" style="${IS('margin-bottom:8px')}"><input id="rWish" value="${e(rWish)}" placeholder="想吃的食材：虾仁、土豆、番茄…" style="${IS('margin-bottom:8px')}"><button data-a="refreshRecipes" style="${BS(C.p,'width:100%;margin-bottom:10px')}">更新推荐</button><div style="font-size:12px;color:${C.muted};line-height:1.7">已有：${e(pantryTxt)}</div>`);
   const linkList=(S.recipeLinks||[]).map(x=>`<div style="padding:10px 0;border-top:1px solid ${C.line}"><div style="display:flex;gap:8px;align-items:flex-start"><div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600;color:${C.ink}">${e(x.title||'未命名食谱')}</div><a href="${e(x.url)}" target="_blank" style="font-size:12px;color:${C.p};word-break:break-all">${e(x.url)}</a>${x.note?`<div style="font-size:12px;color:${C.muted};margin-top:4px">${e(x.note)}</div>`:''}</div>${xbtn('delRecipeLink',x.id)}</div></div>`).join('');
-  const links=card('食谱链接/视频记录',`<input id="recipeLinkTitle" placeholder="标题，比如 小红书番茄牛腩" style="${IS('margin-bottom:8px')}"><input id="recipeLinkUrl" placeholder="粘贴链接" style="${IS('margin-bottom:8px')}"><textarea id="recipeLinkNote" placeholder="记录重点：调料、时间、想改的地方…" rows="3" style="${IS('resize:vertical;line-height:1.6')}"></textarea><button data-a="addRecipeLink" style="${BS(C.p,'width:100%;margin-top:8px')}">保存链接</button><div style="margin-top:12px">${linkList||empty('刷到做饭视频，就把链接和笔记丢在这里。')}</div>`);
+  const links=card('食谱链接/视频记录',`<input id="recipeLinkTitle" value="${e(rLinkTitle)}" placeholder="标题，比如 小红书番茄牛腩" style="${IS('margin-bottom:8px')}"><input id="recipeLinkUrl" value="${e(rLinkUrl)}" placeholder="粘贴链接" style="${IS('margin-bottom:8px')}"><textarea id="recipeLinkNote" placeholder="记录重点：调料、时间、想改的地方…" rows="3" style="${IS('resize:vertical;line-height:1.6')}">${e(rLinkNote)}</textarea><button data-a="addRecipeLink" style="${BS(C.p,'width:100%;margin-top:8px')}">保存链接</button><div style="margin-top:12px">${linkList||empty('刷到做饭视频，就把链接和笔记丢在这里。')}</div>`);
   const aiBox=card('AI 灵感（可选）',`<div style="font-size:12px;color:${C.muted};line-height:1.7;margin-bottom:10px">本页大部分功能都在本地运行。点击按钮才会根据现有食材调用 API 生成新菜谱。</div>${S.apiKey?`<button data-a="aiRecipe" style="${BS(C.p,'width:100%')}">根据现有食材生成新菜谱</button>`:`<div style="font-size:12px;color:${C.faint};text-align:center;padding:8px">先在 ⚙️ 设置里填入 API Key</div>`}${rAiIdea?`<div style="margin-top:12px;font-size:13px;line-height:1.85;white-space:pre-wrap;background:${C.pS};border-radius:12px;padding:12px">${e(rAiIdea)}</div>`:''}`);
   const list=rMode==='links'?links:`<div class="xb-vocab-list">${scored.map(renderRecipeCard).join('')||empty('没有匹配菜谱。换个食材试试，或看全部菜谱。')}</div>`;
   return `<div class="xb-card-grid"><div class="xb-wide">${hero}</div><div>${controls}${aiBox}${rMode==='links'?'':links}</div><div>${list}</div></div>`
@@ -1033,7 +1033,10 @@ function renderBills_normal(cur){
     </div>`
   }).join('');
   const detailCard=monExp.length?card('明细 · 点一笔可编辑',`
-    <input id="eSearch" value="${e(eSearch)}" placeholder="🔍 搜索备注、分类、标签…" style="${IS('margin-bottom:10px')}">
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <input id="eSearch" value="${e(eSearch)}" placeholder="🔍 搜索备注、分类、标签…" style="${IS()}">
+      <button data-a="refreshBills" style="${BS(C.p)}">筛选</button>
+    </div>
     ${dayBlocks||empty('没有匹配的记录。')}
   `):'';
 
@@ -1583,7 +1586,7 @@ function renderVocab(){
     ${pill(vSort==='review',C.g,C.gS,'复习序','setVSort','review')}
   </div>`;
 
-  const searchBar=S.vocab.length>5?`<input id="vSearch" value="${e(vSearch)}" placeholder="🔍 搜索单词…" style="${IS('margin-bottom:12px')}">`:'';
+  const searchBar=S.vocab.length>5?`<div style="display:flex;gap:8px;margin-bottom:12px"><input id="vSearch" value="${e(vSearch)}" placeholder="🔍 搜索单词…" style="${IS()}"><button data-a="refreshVocab" style="${BS(C.p)}">搜索</button></div>`:'';
 
   const items=list.map(v=>{
     const dueNow=v.nextReview<=Date.now();
@@ -2178,15 +2181,17 @@ function bindEvents(){
     if(a==='addW'){const t=(document.getElementById('wiIn')?.value||'').trim();if(!t)return;wiTxt='';save({...S,wishlist:[...S.wishlist,{id:Date.now(),name:t}]});return}
     if(a==='delW'){save({...S,wishlist:S.wishlist.filter(x=>String(x.id)!==id)});return}
     if(a==='setRMode'){rMode=v;render();return}
+    if(a==='refreshRecipes'){render();return}
     if(a==='favRecipe'){const favs=S.recipeFavs||[];save({...S,recipeFavs:favs.includes(id)?favs.filter(x=>x!==id):[...favs,id]});return}
     if(a==='saveRecipeNote'){const txt=document.querySelector(`[data-rnote="${CSS.escape(id)}"]`)?.value||'';save({...S,recipeNotes:{...(S.recipeNotes||{}),[id]:txt}});return}
     if(a==='copyRecipe'){const base=recipeAll().find(r=>r.id===id);if(base){const name=prompt('给你的改造版起个名字：',base.name+' · 我的版本');if(name){const custom={...base,id:'custom-'+Date.now(),name:name.trim(),source:'custom',baseId:base.id};save({...S,recipeCustom:[custom,...(S.recipeCustom||[])],recipeFavs:[...new Set([...(S.recipeFavs||[]),custom.id])]})}}return}
     if(a==='delRecipe'){if(confirm('删除这个改造版？原菜谱会保留。'))save({...S,recipeCustom:(S.recipeCustom||[]).filter(r=>r.id!==id),recipeFavs:(S.recipeFavs||[]).filter(x=>x!==id)});return}
     if(a==='addRecipeMeal'){const r=recipeAll().find(x=>x.id===id);if(r){mutE(e=>{e.meals=[...(e.meals||[]),{id:Date.now(),type:'加餐',text:'🍳 '+r.name}]})};return}
-    if(a==='addRecipeLink'){const title=(document.getElementById('recipeLinkTitle')?.value||'').trim();const url=(document.getElementById('recipeLinkUrl')?.value||'').trim();const note=(document.getElementById('recipeLinkNote')?.value||'').trim();if(!url){alert('先粘贴链接。');return}save({...S,recipeLinks:[{id:Date.now(),title,url,note,date:today()},...(S.recipeLinks||[])]});return}
+    if(a==='addRecipeLink'){const title=(document.getElementById('recipeLinkTitle')?.value||'').trim();const url=(document.getElementById('recipeLinkUrl')?.value||'').trim();const note=(document.getElementById('recipeLinkNote')?.value||'').trim();if(!url){alert('先粘贴链接。');return}rLinkTitle='';rLinkUrl='';rLinkNote='';save({...S,recipeLinks:[{id:Date.now(),title,url,note,date:today()},...(S.recipeLinks||[])]});return}
     if(a==='delRecipeLink'){save({...S,recipeLinks:(S.recipeLinks||[]).filter(x=>String(x.id)!==id)});return}
     if(a==='aiRecipe'){await aiRecipeIdea();return}
     if(a==='calcKey'){pressCalcKey(v);return}
+    if(a==='refreshBills'){render();return}
     if(a==='addE'){const amt=calcAmount(document.getElementById('eAmt')?.value||'');if(isNaN(amt)||amt<=0)return;const note=(document.getElementById('eNote')?.value||'').trim();const dt=document.getElementById('eDate')?.value||today();let imgId=null;if(eImg){imgId=await storeImg(eImg)}const rec={id:Date.now(),amount:Math.round(amt*100)/100,cat:eCat,note,date:dt,tag:eTag||'',img:imgId};eAmt='';eNote='';eTag='';eImg='';save({...S,expenses:[rec,...S.expenses]});return}
     if(a==='saveBudget'){const raw=document.getElementById('budgetIn')?.value||'';const val=calcAmount(raw);if(isNaN(val)||val<=0){alert('请输入有效的预算金额。');return}budgetIn='';save({...S,monthlyBudgets:{...(S.monthlyBudgets||{}),[eMon]:Math.round(val*100)/100}});return}
     if(a==='clearBudget'){budgetIn='';const mb={...(S.monthlyBudgets||{})};delete mb[eMon];save({...S,monthlyBudgets:mb});return}
@@ -2292,6 +2297,7 @@ function bindEvents(){
     if(a==='addVocab'){const w=(document.getElementById('vAddInput')?.value||'').trim();if(w)await addVocab(w);return}
     if(a==='setVView'){vView=v;render();return}
     if(a==='setVSort'){vSort=v;render();return}
+    if(a==='refreshVocab'){render();return}
     if(a==='openVocabDetail'){vDetail={word:v};_detailCache={};render();return}
     if(a==='closeVocabDetail'){vDetail=null;_detailCache={};render();return}
     if(a==='delVocab'){if(confirm('从词库移除 "'+id+'"？')){S.vocab=S.vocab.filter(x=>x.word!==id);delete S.vocabNotes[id];delete S.vocabAi[id];vDetail=null;save({...S})};return}
@@ -2332,27 +2338,29 @@ function bindEvents(){
     if(el.dataset&&el.dataset.a==='draftEdit'&&aiDraft){const i=+el.dataset.id,fld=el.dataset.f;if(aiDraft.items[i]){aiDraft.items[i][fld]=el.value}return}
     if(el.id==='wIn'){wIn=el.value}
     if(el.id==='mIn'){mTxt=el.value}
-    if(el.id==='dName'){dName=el.value;if(!dSticker){clearTimeout(window._ds);window._ds=setTimeout(render,250)}}
+    if(el.id==='dName'){dName=el.value}
     if(el.id==='dSize'){dSize=el.value}
     if(el.id==='dCaf'){dCaf=el.value}
     if(el.id==='dNote'){dNote=el.value}
-    if(el.id==='pN'){pN=el.value;clearTimeout(window._ps);window._ps=setTimeout(render,250);return}
+    if(el.id==='pN'){pN=el.value}
     if(el.id==='pQ'){pQ=el.value}
     if(el.id==='pE'){pE=el.value}
-    if(el.id==='pU'){pU=el.value;render();return}
     if(el.id==='pUcustom'){pUcustom=el.value}
     if(el.id==='wiIn'){wiTxt=el.value}
-    if(el.id==='rSearch'){rSearch=el.value;clearTimeout(window._rs);window._rs=setTimeout(render,200);return}
-    if(el.id==='rWish'){rWish=el.value;clearTimeout(window._rw);window._rw=setTimeout(render,250);return}
+    if(el.id==='rSearch'){rSearch=el.value;return}
+    if(el.id==='rWish'){rWish=el.value;return}
+    if(el.id==='recipeLinkTitle'){rLinkTitle=el.value}
+    if(el.id==='recipeLinkUrl'){rLinkUrl=el.value}
+    if(el.id==='recipeLinkNote'){rLinkNote=el.value}
     if(el.id==='nList'){nList=el.value}
     if(el.id==='eAmt'){eAmt=el.value}
     if(el.id==='eNote'){eNote=el.value}
     if(el.id==='budgetIn'){budgetIn=el.value}
-    if(el.id==='eSearch'){eSearch=el.value;clearTimeout(window._st);window._st=setTimeout(render,250);return}
+    if(el.id==='eSearch'){eSearch=el.value}
     if(el.id==='vAddInput'){vAddInput=el.value}
-    if(el.id==='vSearch'){vSearch=el.value;clearTimeout(window._vs);window._vs=setTimeout(render,250);return}
+    if(el.id==='vSearch'){vSearch=el.value}
     if(el.id==='spellInput'){reviewInput=el.value}
-    if(el.id==='bulkInput'){bulkText=el.value;clearTimeout(window._bk);window._bk=setTimeout(render,400);return}
+    if(el.id==='bulkInput'){bulkText=el.value}
     if(el.id==='eDate'){eDate=el.value}
     if(el.id==='jTxt'){jTxt=el.value}
     if(el.id==='meTxt'){meTxt=el.value}
