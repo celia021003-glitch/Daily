@@ -187,7 +187,7 @@ const idb={
 };
 
 // ═══════════════════════ STATE ═══════════════════════
-let S={entries:{},pantry:[],wishlist:[],lists:[],journal:[],frags:[],period:{days:{},syms:{}},expenses:[],theme:'mist',accent:null,accentA:0.13,bgc:null,cur:'$',apiKey:'',wunit:'kg',billTags:['必需','想要','请客','囤货'],listMode:'fold',taskSort:'due',taskFilter:'all',vocab:[],vocabNotes:{},vocabAi:{},vocabSynonyms:{},aiUsage:{count:0,month:''},reviewHistory:{},dictReady:false,recipeFavs:[],recipeNotes:{},recipeCustom:[],recipeLinks:[],appName:'饮食 & 体重小本',appKicker:'daily log',appTitle:'',appIcon:'✍️',labels:{...TAB_LABELS}};
+let S={entries:{},pantry:[],wishlist:[],lists:[],journal:[],frags:[],period:{days:{},syms:{}},expenses:[],monthlyBudgets:{},theme:'mist',accent:null,accentA:0.13,bgc:null,cur:'$',apiKey:'',wunit:'kg',billTags:['必需','想要','请客','囤货'],listMode:'fold',taskSort:'due',taskFilter:'all',vocab:[],vocabNotes:{},vocabAi:{},vocabSynonyms:{},aiUsage:{count:0,month:''},reviewHistory:{},dictReady:false,recipeFavs:[],recipeNotes:{},recipeCustom:[],recipeLinks:[],appName:'饮食 & 体重小本',appKicker:'daily log',appTitle:'',appIcon:'✍️',labels:{...TAB_LABELS}};
 let IC={};
 let TAB='today',DATE=dstr(new Date());
 let wIn='',mTxt='',mType='早餐';
@@ -199,7 +199,7 @@ let nList='',nListIcon='📝',liIn={},liDue={},liImp={};
 let listCollapse={},dragListId=null;
 let jTxt='',jMood='✨',jFont='kai',jHi=null,jTape=TAPES[0],jSt=null,jImgs=[];
 let meTxt='',meImgs=[],composing=false,readFrag=null;
-let eAmt='',eCat='餐饮',eNote='',eDate=dstr(new Date()),eMon=dstr(new Date()).slice(0,7),eTag='',eImg='';
+let eAmt='',eCat='餐饮',eNote='',eDate=dstr(new Date()),eMon=dstr(new Date()).slice(0,7),eTag='',eImg='',budgetIn='';
 let eSearch='',editExp=null,billCollapse={};
 let photoPrev='';
 let aiDraft=null;
@@ -364,7 +364,7 @@ async function loadState(){
     const v=await idb.get(SKEY);
     if(v){
       const d=JSON.parse(v);
-      S={...S,...d,period:d.period||{days:{},syms:{}},expenses:d.expenses||[],frags:d.frags||[],apiKey:d.apiKey||'',wunit:d.wunit||'kg',billTags:(d.billTags&&d.billTags.length)?d.billTags:['必需','想要','请客','囤货'],listMode:d.listMode||'fold',taskSort:d.taskSort||'due',taskFilter:d.taskFilter||'all',vocab:d.vocab||[],vocabNotes:d.vocabNotes||{},vocabAi:d.vocabAi||{},vocabSynonyms:d.vocabSynonyms||{},aiUsage:d.aiUsage||{count:0,month:''},reviewHistory:d.reviewHistory||{},recipeFavs:d.recipeFavs||[],recipeNotes:d.recipeNotes||{},recipeCustom:d.recipeCustom||[],recipeLinks:d.recipeLinks||[],appName:d.appName||'饮食 & 体重小本',appKicker:d.appKicker||'daily log',appTitle:(d.appTitle&&d.appTitle!=='小本')?d.appTitle:'',appIcon:d.appIcon||'✍️',labels:{...TAB_LABELS,...(d.labels||{})}}
+      S={...S,...d,period:d.period||{days:{},syms:{}},expenses:d.expenses||[],monthlyBudgets:d.monthlyBudgets||{},frags:d.frags||[],apiKey:d.apiKey||'',wunit:d.wunit||'kg',billTags:(d.billTags&&d.billTags.length)?d.billTags:['必需','想要','请客','囤货'],listMode:d.listMode||'fold',taskSort:d.taskSort||'due',taskFilter:d.taskFilter||'all',vocab:d.vocab||[],vocabNotes:d.vocabNotes||{},vocabAi:d.vocabAi||{},vocabSynonyms:d.vocabSynonyms||{},aiUsage:d.aiUsage||{count:0,month:''},reviewHistory:d.reviewHistory||{},recipeFavs:d.recipeFavs||[],recipeNotes:d.recipeNotes||{},recipeCustom:d.recipeCustom||[],recipeLinks:d.recipeLinks||[],appName:d.appName||'饮食 & 体重小本',appKicker:d.appKicker||'daily log',appTitle:(d.appTitle&&d.appTitle!=='小本')?d.appTitle:'',appIcon:d.appIcon||'✍️',labels:{...TAB_LABELS,...(d.labels||{})}}
     }
   }catch(e){}
   try{
@@ -971,6 +971,32 @@ function renderBills_normal(cur){
   const monExp=S.expenses.filter(x=>x.date.slice(0,7)===eMon);
   const total=monExp.reduce((s,x)=>s+x.amount,0);
   const byCat={};monExp.forEach(x=>{byCat[x.cat]=(byCat[x.cat]||0)+x.amount});
+  const budget=Number((S.monthlyBudgets||{})[eMon])||0;
+  const left=budget-total;
+  const pct=budget>0?Math.min(100,Math.round(total/budget*100)):0;
+  const budgetTone=budget<=0?C.faint:left<0?C.w:left<budget*.2?C.w:C.g;
+  const budgetBg=budget<=0?C.pS:left<0?C.wS:left<budget*.2?C.wS:C.gS;
+  const bVal=budgetIn!==''?budgetIn:(budget?String(budget):'');
+  const budgetCard=card('本月预算',`
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
+      <div style="${IS('flex:1;display:flex;align-items:center;gap:4px')}">
+        <span style="color:${C.muted};flex-shrink:0">${cur}</span>
+        <input id="budgetIn" value="${e(bVal)}" inputmode="decimal" placeholder="设置 ${e(eMon.replace('-','年'))}月预算" style="border:none;outline:none;background:none;flex:1;font-size:15px;color:${C.ink};width:100%">
+      </div>
+      <button data-a="saveBudget" style="${BS(C.p)}">保存</button>
+      ${budget?`<button data-a="clearBudget" style="${BS(C.line,'color:'+C.muted)}">清除</button>`:''}
+    </div>
+    ${budget?`<div style="background:${budgetBg};border-radius:18px;padding:14px">
+      <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-end">
+        <div><div style="font-size:12px;color:${C.muted}">还剩</div><div style="font-family:${SR};font-size:28px;font-weight:700;color:${budgetTone}">${left>=0?cur+left.toFixed(2):'超 '+cur+Math.abs(left).toFixed(2)}</div></div>
+        <div style="text-align:right;font-size:12px;color:${C.muted}">已用 ${cur}${total.toFixed(2)} / ${cur}${budget.toFixed(2)}<br>${Math.round(total/budget*100)}%</div>
+      </div>
+      <div style="height:10px;border-radius:999px;background:rgba(255,255,255,.75);overflow:hidden;margin-top:12px">
+        <div style="height:100%;width:${pct}%;background:${budgetTone};border-radius:999px"></div>
+      </div>
+      <div style="font-size:12px;color:${C.muted};line-height:1.65;margin-top:8px">${left<0?'已经超过预算，接下来可以收紧非必要开销。':left<budget*.2?'预算快到底了，后面几天稍微看紧一点。':'目前还在预算内。'}</div>
+    </div>`:`<div style="background:${C.pS};border-radius:16px;padding:12px;color:${C.muted};font-size:13px;line-height:1.7">给这个月设一个预算，之后每记一笔都会自动显示剩余金额。</div>`}
+  `);
   const summCard=card('',`
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
       <button data-a="prevMon" style="width:34px;height:34px;border-radius:10px;border:1px solid ${C.line};background:${C.card};color:${C.ink};font-size:20px;cursor:pointer;line-height:1">‹</button>
@@ -1011,7 +1037,7 @@ function renderBills_normal(cur){
     ${dayBlocks||empty('没有匹配的记录。')}
   `):'';
 
-  return addCard+summCard+detailCard
+  return addCard+budgetCard+summCard+detailCard
 }
 
 // 编辑账单弹层
@@ -2162,6 +2188,8 @@ function bindEvents(){
     if(a==='aiRecipe'){await aiRecipeIdea();return}
     if(a==='calcKey'){pressCalcKey(v);return}
     if(a==='addE'){const amt=calcAmount(document.getElementById('eAmt')?.value||'');if(isNaN(amt)||amt<=0)return;const note=(document.getElementById('eNote')?.value||'').trim();const dt=document.getElementById('eDate')?.value||today();let imgId=null;if(eImg){imgId=await storeImg(eImg)}const rec={id:Date.now(),amount:Math.round(amt*100)/100,cat:eCat,note,date:dt,tag:eTag||'',img:imgId};eAmt='';eNote='';eTag='';eImg='';save({...S,expenses:[rec,...S.expenses]});return}
+    if(a==='saveBudget'){const raw=document.getElementById('budgetIn')?.value||'';const val=calcAmount(raw);if(isNaN(val)||val<=0){alert('请输入有效的预算金额。');return}budgetIn='';save({...S,monthlyBudgets:{...(S.monthlyBudgets||{}),[eMon]:Math.round(val*100)/100}});return}
+    if(a==='clearBudget'){budgetIn='';const mb={...(S.monthlyBudgets||{})};delete mb[eMon];save({...S,monthlyBudgets:mb});return}
     if(a==='setECat'){eCat=v;render();return}
     if(a==='setETag'){eTag=(eTag===v?'':v);render();return}
     if(a==='addBillTag'){const t=prompt('新标签名：');if(t&&t.trim()){const tg=t.trim();if(!(S.billTags||[]).includes(tg)){save({...S,billTags:[...(S.billTags||[]),tg]})}}return}
@@ -2176,8 +2204,8 @@ function bindEvents(){
     if(a==='ee_clearImg'){if(editExp){editExp.img=null;render()}return}
     if(a==='ee_delete'){if(editExp){const eid=editExp.id;editExp=null;save({...S,expenses:S.expenses.filter(z=>z.id!==eid)})}return}
     if(a==='ee_save'){if(editExp){const amt=calcAmount(document.getElementById('ee_amt')?.value||'');const note=(document.getElementById('ee_note')?.value||'').trim();const dt=document.getElementById('ee_date')?.value||editExp.date;const upd={...editExp,amount:isNaN(amt)?editExp.amount:Math.round(amt*100)/100,note,date:dt};editExp=null;save({...S,expenses:S.expenses.map(z=>z.id===upd.id?upd:z)})}return}
-    if(a==='prevMon'){eMon=shiftM(eMon,-1);render();return}
-    if(a==='nextMon'){if(eMon<today().slice(0,7)){eMon=shiftM(eMon,1);render()};return}
+    if(a==='prevMon'){eMon=shiftM(eMon,-1);budgetIn='';render();return}
+    if(a==='nextMon'){if(eMon<today().slice(0,7)){eMon=shiftM(eMon,1);budgetIn='';render()};return}
     if(a==='addList'){const t=(document.getElementById('nList')?.value||'').trim();if(!t)return;const ic=nListIcon;nList='';nListIcon='📝';save({...S,lists:[{id:Date.now(),title:t,icon:ic,items:[]},...S.lists]});return}
     if(a==='pickListIcon'){nListIcon=v;render();return}
     if(a==='setListMode'){save({...S,listMode:v});return}
@@ -2319,6 +2347,7 @@ function bindEvents(){
     if(el.id==='nList'){nList=el.value}
     if(el.id==='eAmt'){eAmt=el.value}
     if(el.id==='eNote'){eNote=el.value}
+    if(el.id==='budgetIn'){budgetIn=el.value}
     if(el.id==='eSearch'){eSearch=el.value;clearTimeout(window._st);window._st=setTimeout(render,250);return}
     if(el.id==='vAddInput'){vAddInput=el.value}
     if(el.id==='vSearch'){vSearch=el.value;clearTimeout(window._vs);window._vs=setTimeout(render,250);return}
