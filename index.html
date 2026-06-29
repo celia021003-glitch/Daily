@@ -73,10 +73,51 @@ const MOODS=['✨','☁️','🌙','🌤️','🌧️','🌊'];
 const HILITES=['#FFE58A','#B8E6C1','#FFC9D4','#BBD8FF','#E2C4FF'];
 const TAPES=['#D9C7A7','#C7D9C9','#E3C2CB','#C2CFE3','#E0CFE8'];
 const STICKERS=['🌷','⭐️','🍃','☕️','🐱','🌙','🎀','🫧'];
+const APP_ICONS=['✍️','☕','☾','✦','𓂃','ᵕ̈','ꕤ','୨୧','ʚɞ','🫧','🍃','🌷','⭐','🍳','📖','🧺'];
+const CUTE_SYMBOLS=[' · ᵕ̈',' ˘͈ᵕ˘͈',' ☾',' 𓂃',' 𓇼',' ꕤ',' ୨୧',' ✧',' 𖤐',' ᰔ',' ◡̈',' 𓏲',' ✦',' ʚɞ',' ♡',' ⁺₊'];
 const UNITS=['个','g','ml','包','份','把','盒','瓶','颗'];
 const MTYPES=['早餐','午餐','晚餐','加餐'];
 const DTYPES=['咖啡','奶茶','茶','饮料','酒','奶/豆浆','果汁','其他'];
 const SUGARS=['无糖','少糖','半糖','正常糖','全糖'];
+const DRINK_STICKERS={
+  '咖啡':['☕','☕️','𖠚','🫘','🥛','🍫','🧊','🍯'],
+  '奶茶':['🧋','🥤','🫧','🍮','🍯','🥛'],
+  '茶':['🍵','🫖','🌿','🍃','🌸','🍋'],
+  '饮料':['🥤','🧃','🫧','🍋','🍓','🧊'],
+  '酒':['🍷','🍸','🍺','🥂','🍶'],
+  '奶/豆浆':['🥛','🫘','🍶','🌱'],
+  '果汁':['🧃','🍊','🍎','🍓','🍋'],
+  '其他':['✨','♡','✦','𓂃']
+};
+const FOOD_STICKERS=['🥚','🥩','🍗','🐟','🦐','🥛','🧀','🍚','🍞','🥔','🥬','🥦','🍅','🥕','🍄','🍎','🍌','🫐','🥑','🌰','🫘','🧂','🍽️'];
+const NUTRI_GOALS=[
+  {id:'antiInflamm',name:'抗炎',icon:'🌿',focus:['Omega-3','膳食纤维','多酚','镁'],foods:['深海鱼','亚麻籽/奇亚籽','橄榄油','莓果','绿叶菜','豆类','坚果'],tip:'少一点高糖和高度加工食物，多一点鱼、豆、蔬果和全谷物。'},
+  {id:'antioxidant',name:'抗氧化',icon:'🫐',focus:['维生素 C','维生素 E','类胡萝卜素','硒','多酚'],foods:['莓果','柑橘','番茄','胡萝卜','菠菜','坚果','茶','可可'],tip:'颜色越丰富越好，红橙黄绿紫都轮流出现。'},
+  {id:'energy',name:'精力稳定',icon:'🌤️',focus:['铁','B 族维生素','镁','优质碳水','蛋白质'],foods:['瘦肉/鱼蛋','豆类','全谷物','绿叶菜','坚果','酸奶'],tip:'别只喝咖啡硬撑，主食、蛋白和矿物质都要有一点。'},
+  {id:'bone',name:'骨骼与肌肉',icon:'🦴',focus:['钙','维生素 D','镁','蛋白质'],foods:['牛奶/酸奶','豆腐','小鱼干','深绿叶菜','鸡蛋','鱼类'],tip:'钙和维 D 常常一起看，日晒、乳制品/强化食品和鱼类都值得留意。'},
+  {id:'gut',name:'肠道友好',icon:'🌾',focus:['膳食纤维','益生菌','多样植物食物'],foods:['燕麦','豆类','蔬菜','水果','酸奶','泡菜/味噌','全谷物'],tip:'先慢慢增加纤维，同时喝够水，肠胃更容易适应。'},
+  {id:'period',name:'经期友好',icon:'🌷',focus:['铁','叶酸','镁','Omega-3','维生素 C'],foods:['红肉/动物肝适量','贝类','豆类','菠菜','柑橘','坚果','鱼'],tip:'铁和维 C 一起吃更友好；如果长期量多或疲惫，最好问医生查铁蛋白。'}
+];
+const NUTRI_RULES=[
+  {id:'protein',name:'蛋白质',icon:'🥚',keys:['鸡','牛','猪','羊','鱼','虾','蟹','蛋','豆腐','豆浆','豆类','牛奶','酸奶','金枪鱼','三文鱼','鸡胸','牛肉'],foods:['鸡蛋','鱼虾','鸡胸肉','豆腐','酸奶']},
+  {id:'fiber',name:'膳食纤维',icon:'🌾',keys:['燕麦','全麦','糙米','小米','玉米','豆','红薯','南瓜','蔬菜','青菜','菠菜','西兰花','水果','苹果','莓','香蕉'],foods:['燕麦','豆类','全谷物','蔬菜','水果']},
+  {id:'omega3',name:'Omega-3',icon:'🐟',keys:['三文鱼','沙丁鱼','鲭鱼','鳕鱼','金枪鱼','鱼','亚麻籽','奇亚籽','核桃'],foods:['三文鱼','沙丁鱼','亚麻籽','奇亚籽','核桃']},
+  {id:'vitc',name:'维生素 C',icon:'🍊',keys:['橙','橘','柑','柠檬','猕猴桃','草莓','蓝莓','番茄','西红柿','彩椒','西兰花'],foods:['橙子','猕猴桃','草莓','番茄','彩椒']},
+  {id:'calcium',name:'钙',icon:'🥛',keys:['牛奶','酸奶','奶酪','芝士','豆腐','小鱼','芝麻','深绿叶菜'],foods:['牛奶/酸奶','豆腐','芝麻酱','小鱼干','深绿叶菜']},
+  {id:'iron',name:'铁',icon:'🥩',keys:['牛肉','羊肉','猪肝','肝','贝','蛤蜊','菠菜','红肉','豆类','扁豆'],foods:['红肉','贝类','豆类','菠菜','动物肝适量']},
+  {id:'magnesium',name:'镁',icon:'🌰',keys:['坚果','杏仁','腰果','核桃','南瓜籽','黑巧','燕麦','菠菜','豆类'],foods:['坚果','南瓜籽','燕麦','豆类','菠菜']},
+  {id:'antioxidant',name:'抗氧化',icon:'🫐',keys:['蓝莓','莓','草莓','番茄','胡萝卜','紫甘蓝','菠菜','绿茶','茶','可可','黑巧','彩椒'],foods:['莓果','番茄','胡萝卜','绿叶菜','茶/可可']},
+  {id:'probiotic',name:'益生菌/发酵食物',icon:'🫙',keys:['酸奶','泡菜','味噌','纳豆','康普茶','发酵'],foods:['酸奶','泡菜','味噌','纳豆']}
+];
+const FOOD_PAIR_RULES=[
+  {type:'plus',title:'铁 + 维 C',a:['牛肉','羊肉','猪肝','肝','贝','蛤蜊','菠菜','豆类','扁豆','红肉'],b:['橙','橘','柠檬','猕猴桃','草莓','番茄','西红柿','彩椒','西兰花'],msg:'维 C 可以帮助非血红素铁吸收，菠菜/豆类配番茄、柑橘或彩椒很友好。'},
+  {type:'plus',title:'脂溶性营养 + 好脂肪',a:['胡萝卜','番茄','西红柿','菠菜','南瓜','彩椒','西兰花'],b:['橄榄油','牛油果','坚果','芝麻','三文鱼','鸡蛋'],msg:'类胡萝卜素等脂溶性营养和一点好脂肪一起吃，吸收通常更好。'},
+  {type:'plus',title:'豆类 + 谷物',a:['豆腐','豆类','扁豆','鹰嘴豆','红豆','绿豆'],b:['米饭','糙米','燕麦','面包','全麦','玉米','小米'],msg:'豆类和谷物互相补充氨基酸，素食餐里尤其适合这样搭。'},
+  {type:'plus',title:'益生菌 + 膳食纤维',a:['酸奶','泡菜','味噌','纳豆','发酵'],b:['燕麦','豆类','水果','蔬菜','苹果','香蕉','莓','全麦'],msg:'发酵食物配纤维来源，对肠道友好度更高。'},
+  {type:'watch',title:'茶/咖啡 + 补铁餐',a:['咖啡','茶','奶茶','绿茶','红茶'],b:['牛肉','羊肉','猪肝','肝','贝','蛤蜊','菠菜','豆类','扁豆','红肉'],msg:'茶和咖啡里的多酚可能影响铁吸收。如果这餐重点补铁，可以和茶/咖啡错开一点。'},
+  {type:'watch',title:'高钙 + 补铁重点餐',a:['牛奶','酸奶','奶酪','芝士','钙片'],b:['猪肝','肝','贝','蛤蜊','菠菜','豆类','扁豆','红肉'],msg:'大量钙和铁同餐可能互相竞争吸收。如果正在认真补铁，可以把高钙食物错开。'},
+  {type:'watch',title:'高纤维突然很多',a:['燕麦','豆类','扁豆','鹰嘴豆','西兰花','全麦','糙米'],b:['豆类','西兰花','高纤维','燕麦'],msg:'纤维很好，但突然加太多可能胀气。可以慢慢增加，并记得喝水。'}
+];
 const TAB_LABELS={today:'今日',food:'食材',recipe:'菜谱',bills:'账单',list:'清单',vocab:'单词',journal:'手帐',me:'我'};
 const FLOW={light:{c:'#F0B6C0',t:'轻'},medium:{c:'#E18599',t:'中'},heavy:{c:'#C75B70',t:'多'}};
 const SYMS=['痛经','乏力','情绪','腹胀','头痛','嗜睡'];
@@ -146,15 +187,15 @@ const idb={
 };
 
 // ═══════════════════════ STATE ═══════════════════════
-let S={entries:{},pantry:[],wishlist:[],lists:[],journal:[],frags:[],period:{days:{},syms:{}},expenses:[],theme:'mist',accent:null,accentA:0.13,bgc:null,cur:'$',apiKey:'',wunit:'kg',billTags:['必需','想要','请客','囤货'],listMode:'fold',vocab:[],vocabNotes:{},vocabAi:{},vocabSynonyms:{},aiUsage:{count:0,month:''},reviewHistory:{},dictReady:false,recipeFavs:[],recipeNotes:{},recipeCustom:[],recipeLinks:[],appName:'饮食 & 体重小本',appKicker:'daily log',appTitle:'',labels:{...TAB_LABELS}};
+let S={entries:{},pantry:[],wishlist:[],lists:[],journal:[],frags:[],period:{days:{},syms:{}},expenses:[],theme:'mist',accent:null,accentA:0.13,bgc:null,cur:'$',apiKey:'',wunit:'kg',billTags:['必需','想要','请客','囤货'],listMode:'fold',taskSort:'due',taskFilter:'all',vocab:[],vocabNotes:{},vocabAi:{},vocabSynonyms:{},aiUsage:{count:0,month:''},reviewHistory:{},dictReady:false,recipeFavs:[],recipeNotes:{},recipeCustom:[],recipeLinks:[],appName:'饮食 & 体重小本',appKicker:'daily log',appTitle:'',appIcon:'✍️',labels:{...TAB_LABELS}};
 let IC={};
 let TAB='today',DATE=dstr(new Date());
 let wIn='',mTxt='',mType='早餐';
-let dName='',dType='咖啡',dSize='',dSugar='正常糖',dCaf='',dNote='';
-let pN='',pQ='',pU='个',pE='',pUcustom='';
+let dName='',dType='咖啡',dSize='',dSugar='正常糖',dCaf='',dNote='',dSticker='';
+let pN='',pQ='',pU='个',pE='',pUcustom='',pSticker='',nutriGoal='antiInflamm';
 let wiTxt='';
 let rSearch='',rWish='',rMode='mine',rAiIdea='';
-let nList='',nListIcon='📝',liIn={};
+let nList='',nListIcon='📝',liIn={},liDue={},liImp={};
 let listCollapse={},dragListId=null;
 let jTxt='',jMood='✨',jFont='kai',jHi=null,jTape=TAPES[0],jSt=null,jImgs=[];
 let meTxt='',meImgs=[],composing=false,readFrag=null;
@@ -323,7 +364,7 @@ async function loadState(){
     const v=await idb.get(SKEY);
     if(v){
       const d=JSON.parse(v);
-      S={...S,...d,period:d.period||{days:{},syms:{}},expenses:d.expenses||[],frags:d.frags||[],apiKey:d.apiKey||'',wunit:d.wunit||'kg',billTags:(d.billTags&&d.billTags.length)?d.billTags:['必需','想要','请客','囤货'],listMode:d.listMode||'fold',vocab:d.vocab||[],vocabNotes:d.vocabNotes||{},vocabAi:d.vocabAi||{},vocabSynonyms:d.vocabSynonyms||{},aiUsage:d.aiUsage||{count:0,month:''},reviewHistory:d.reviewHistory||{},recipeFavs:d.recipeFavs||[],recipeNotes:d.recipeNotes||{},recipeCustom:d.recipeCustom||[],recipeLinks:d.recipeLinks||[],appName:d.appName||'饮食 & 体重小本',appKicker:d.appKicker||'daily log',appTitle:(d.appTitle&&d.appTitle!=='小本')?d.appTitle:'',labels:{...TAB_LABELS,...(d.labels||{})}}
+      S={...S,...d,period:d.period||{days:{},syms:{}},expenses:d.expenses||[],frags:d.frags||[],apiKey:d.apiKey||'',wunit:d.wunit||'kg',billTags:(d.billTags&&d.billTags.length)?d.billTags:['必需','想要','请客','囤货'],listMode:d.listMode||'fold',taskSort:d.taskSort||'due',taskFilter:d.taskFilter||'all',vocab:d.vocab||[],vocabNotes:d.vocabNotes||{},vocabAi:d.vocabAi||{},vocabSynonyms:d.vocabSynonyms||{},aiUsage:d.aiUsage||{count:0,month:''},reviewHistory:d.reviewHistory||{},recipeFavs:d.recipeFavs||[],recipeNotes:d.recipeNotes||{},recipeCustom:d.recipeCustom||[],recipeLinks:d.recipeLinks||[],appName:d.appName||'饮食 & 体重小本',appKicker:d.appKicker||'daily log',appTitle:(d.appTitle&&d.appTitle!=='小本')?d.appTitle:'',appIcon:d.appIcon||'✍️',labels:{...TAB_LABELS,...(d.labels||{})}}
     }
   }catch(e){}
   try{
@@ -401,14 +442,72 @@ function statBox(label,val,tone,bg){return`<div style="flex:1;background:${bg};b
 function empty(txt){return`<div style="text-align:center;color:${C.faint};font-size:13px;padding:18px 0">${e(txt)}</div>`}
 function lab(id){return (S.labels&&S.labels[id])||TAB_LABELS[id]||id}
 function appShortTitle(){return (S.appTitle&&S.appTitle.trim())||S.appName||'小本'}
-function foodIcon(n){
+function foodSticker(n){
   const s=String(n||'');
-  if(/[鸡蛋蛋]/.test(s))return'🥚';if(/[牛猪羊肉鸡鸭鱼虾蟹]/.test(s))return'🥩';if(/[奶酸奶芝士]/.test(s))return'🥛';
-  if(/[米饭面粉面包吐司燕麦粉条乌冬意面]/.test(s))return'🍚';if(/[番茄西红柿胡萝卜土豆白菜青菜生菜黄瓜蘑菇茄子西兰花南瓜]/.test(s))return'🥬';
-  if(/[香蕉苹果蓝莓水果柠檬牛油果]/.test(s))return'🍎';if(/[咖喱酱油味噌豆瓣酱]/.test(s))return'🧂';return'🍽️'
+  if(/[鸡蛋]/.test(s))return'🥚';if(/[鸡腿鸡胸鸡肉鸭]/.test(s))return'🍗';if(/[牛猪羊肉]/.test(s))return'🥩';if(/[鱼三文鱼鳕鱼金枪鱼]/.test(s))return'🐟';if(/[虾蟹贝蛤蜊]/.test(s))return'🦐';
+  if(/[奶酸奶豆浆]/.test(s))return'🥛';if(/[芝士奶酪]/.test(s))return'🧀';
+  if(/[米饭米小米粥燕麦]/.test(s))return'🍚';if(/[面粉面包吐司粉条乌冬意面]/.test(s))return'🍞';if(/[土豆红薯南瓜]/.test(s))return'🥔';
+  if(/[西兰花]/.test(s))return'🥦';if(/[番茄西红柿]/.test(s))return'🍅';if(/[胡萝卜]/.test(s))return'🥕';if(/[蘑菇香菇]/.test(s))return'🍄';if(/[白菜青菜生菜菠菜黄瓜芹菜蔬菜]/.test(s))return'🥬';
+  if(/[蓝莓莓]/.test(s))return'🫐';if(/[香蕉]/.test(s))return'🍌';if(/[牛油果]/.test(s))return'🥑';if(/[苹果柠檬水果橙橘]/.test(s))return'🍎';
+  if(/[坚果核桃杏仁腰果]/.test(s))return'🌰';if(/[豆腐豆类扁豆鹰嘴豆红豆绿豆]/.test(s))return'🫘';if(/[咖喱酱油味噌豆瓣酱盐]/.test(s))return'🧂';return'🍽️'
 }
-function drinkIcon(type){
-  return type==='咖啡'?'☕':type==='奶茶'?'🧋':type==='茶'?'🍵':type==='酒'?'🍷':type==='果汁'?'🧃':type==='奶/豆浆'?'🥛':type==='饮料'?'🥤':'✨'
+function foodIcon(n){return foodSticker(n)}
+function drinkSticker(type,name){
+  const s=String(name||'');
+  if(type==='咖啡'){
+    if(/(拿铁|latte|奶)/i.test(s))return'🥛';
+    if(/(冰|冷萃|cold|ice)/i.test(s))return'🧊';
+    if(/(摩卡|mocha|巧克力|可可)/i.test(s))return'🍫';
+    if(/(豆|手冲|espresso|美式|americano)/i.test(s))return'🫘';
+    return'☕';
+  }
+  return (DRINK_STICKERS[type]&&DRINK_STICKERS[type][0])||'✨'
+}
+function drinkIcon(type){return drinkSticker(type,'')}
+function nutritionScan(ent){
+  const mealText=(ent.meals||[]).map(m=>m.text||'').join(' ');
+  if(!mealText.trim())return null;
+  const text=mealText.toLowerCase();
+  const hasAny=arr=>arr.some(k=>text.includes(String(k).toLowerCase()));
+  const covered=[],missing=[];
+  NUTRI_RULES.forEach(r=>{
+    const hit=hasAny(r.keys);
+    (hit?covered:missing).push(r)
+  });
+  const pairs=FOOD_PAIR_RULES.filter(r=>hasAny(r.a)&&hasAny(r.b));
+  const hasVeg=/蔬菜|青菜|菠菜|生菜|白菜|西兰花|番茄|西红柿|胡萝卜|黄瓜|蘑菇|彩椒|南瓜|紫甘蓝/.test(mealText);
+  const hasFruit=/水果|苹果|香蕉|蓝莓|草莓|莓|橙|橘|柠檬|猕猴桃|牛油果/.test(mealText);
+  const hasProtein=covered.some(x=>x.id==='protein');
+  let summary='这顿/今天还可以更完整一点。';
+  if(hasProtein&&hasVeg)summary='蛋白质和蔬菜都有出现，基础搭配不错。';
+  else if(hasProtein&&!hasVeg)summary='蛋白质看起来有了，但彩色蔬菜和水果偏少。';
+  else if(!hasProtein&&(hasVeg||hasFruit))summary='蔬果有了，可以再补一点优质蛋白。';
+  const priority=['fiber','vitc','omega3','calcium','iron','magnesium','antioxidant','probiotic','protein'];
+  const suggest=missing.sort((a,b)=>priority.indexOf(a.id)-priority.indexOf(b.id)).slice(0,4);
+  return {covered,missing:suggest,summary,pairs}
+}
+function renderNutritionScan(ent){
+  const scan=nutritionScan(ent);
+  if(!scan)return`<div style="background:${C.pS};border-radius:16px;padding:12px;margin-top:12px;color:${C.muted};font-size:13px;line-height:1.7">🕯️ 记下一餐后，我会在这里粗略看一眼：可能已经覆盖了什么、还可以补什么。</div>`;
+  const covered=scan.covered.slice(0,6).map(x=>`<span style="background:${C.gS};color:${C.g};border-radius:999px;padding:5px 9px;font-size:12px">${x.icon} ${e(x.name)}</span>`).join('');
+  const missing=scan.missing.map(x=>`<div style="background:${C.card};border:1px solid ${C.line};border-radius:14px;padding:10px;margin-top:8px">
+    <div style="font-size:13px;font-weight:700;color:${C.ink}">${x.icon} 可以留意：${e(x.name)}</div>
+    <div style="font-size:12px;color:${C.muted};line-height:1.6;margin-top:4px">可选：${x.foods.map(e).join('、')}</div>
+  </div>`).join('');
+  const pairs=scan.pairs.slice(0,4).map(x=>`<div style="background:${x.type==='plus'?C.gS:C.wS};border-radius:14px;padding:10px;margin-top:8px">
+    <div style="font-size:13px;font-weight:800;color:${x.type==='plus'?C.g:C.w}">${x.type==='plus'?'✦ 加分搭配':'⚑ 留意搭配'} · ${e(x.title)}</div>
+    <div style="font-size:12px;color:${C.muted};line-height:1.65;margin-top:4px">${e(x.msg)}</div>
+  </div>`).join('');
+  return`<div style="background:${C.pS};border-radius:18px;padding:14px;margin-top:12px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span class="xb-sticker" style="font-size:22px">🔎</span><div><div style="font-size:14px;font-weight:800;color:${C.ink}">本地营养扫描</div><div style="font-size:12px;color:${C.muted};line-height:1.6">${e(scan.summary)}</div></div></div>
+    <div style="font-size:12px;color:${C.muted};margin-top:8px">可能已覆盖</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${covered||`<span style="font-size:12px;color:${C.faint}">还不明显</span>`}</div>
+    <div style="font-size:12px;color:${C.muted};margin-top:12px">建议补充</div>
+    ${missing||`<div style="font-size:12px;color:${C.g};margin-top:6px">看起来已经比较丰富，继续保持食物多样性。</div>`}
+    <div style="font-size:12px;color:${C.muted};margin-top:12px">搭配提醒</div>
+    ${pairs||`<div style="font-size:12px;color:${C.faint};margin-top:6px">暂时没有明显的加分/留意搭配。</div>`}
+    <div style="font-size:11px;color:${C.faint};line-height:1.6;margin-top:10px">这是根据文字关键词做的本地粗略提示，不等同于营养诊断。</div>
+  </div>`
 }
 function tabMood(){
   const map={
@@ -434,7 +533,7 @@ function renderDrinkCalendar(){
     total+=arr.length;arr.forEach(x=>{caf+=Number(x.caf)||0;const k=x.name||x.type;fav[k]=(fav[k]||0)+1});
     cells.push(`<button data-a="goDate" data-v="${ds}" class="xb-drink-day" style="background:${on?C.pS:(arr.length?C.wS:C.card)};color:${C.ink};border:${on?'1px solid '+C.p:'1px solid '+C.line}">
       <span style="font-size:11px;color:${on?C.p:C.muted};font-weight:${on?700:500}">${d}</span>
-      ${main?`<span class="xb-drink-dot">${drinkIcon(main.type)}</span>`:''}
+      ${main?`<span class="xb-drink-dot">${e(main.sticker||drinkSticker(main.type,main.name))}</span>`:''}
       ${arr.length>1?`<span style="position:absolute;right:5px;top:5px;background:${C.p};color:#fff;border-radius:999px;font-size:10px;min-width:18px;text-align:center;padding:2px 5px">${arr.length}</span>`:''}
     </button>`)
   }
@@ -538,9 +637,10 @@ function renderToday(){
   const drinks=ent.drinks||[];
   const cafTotal=drinks.reduce((s,x)=>s+(Number(x.caf)||0),0);
   const drinkTypePills=DTYPES.map(t=>pill(dType===t,C.p,C.pS,t,'setDType',t)).join('');
+  const drinkStickerPicks=(DRINK_STICKERS[dType]||DRINK_STICKERS['其他']).map(s=>`<button data-a="setDSticker" data-v="${e(s)}" style="width:34px;height:34px;border-radius:12px;border:1px solid ${(dSticker||drinkSticker(dType,dName))===s?C.p:C.line};background:${(dSticker||drinkSticker(dType,dName))===s?C.pS:C.card};font-size:18px;cursor:pointer">${e(s)}</button>`).join('');
   const sugarPills=SUGARS.map(s=>pill(dSugar===s,C.w,C.wS,s,'setDSugar',s)).join('');
   const drinkList=drinks.map(x=>`<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-top:1px solid ${C.line}">
-    <span class="xb-sticker" style="font-size:22px;line-height:1">${drinkIcon(x.type)}</span>
+    <span class="xb-sticker" style="font-size:22px;line-height:1">${e(x.sticker||drinkSticker(x.type,x.name))}</span>
     <div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600;color:${C.ink}">${e(x.name||x.type)} <span style="font-size:11px;color:${C.muted};font-weight:400">${e(x.type)}</span></div>
     <div style="font-size:12px;color:${C.muted};margin-top:2px">${x.size?e(x.size+'ml · '):''}${e(x.sugar||'')}${x.caf?` · 咖啡因 ${e(x.caf)}mg`:''}${x.note?` · ${e(x.note)}`:''}</div></div>
     ${xbtn('delDrink',x.id)}
@@ -548,6 +648,7 @@ function renderToday(){
   const drinkCalendar=renderDrinkCalendar();
   const drinkCard=card('今天喝了什么',`
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">${drinkTypePills}</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">${drinkStickerPicks}</div>
     <div style="display:flex;gap:8px;margin-bottom:8px">
       <input id="dName" value="${e(dName)}" placeholder="拿铁、乌龙茶、珍珠奶茶…" style="${IS('flex:2')}">
       <input id="dSize" value="${e(dSize)}" inputmode="numeric" placeholder="ml" style="${IS('flex:0 0 82px')}">
@@ -620,6 +721,7 @@ function renderToday(){
       <button data-a="addMeal" style="${BS(C.g)}">添加</button>
     </div>
     <div style="margin-top:14px">${mList||empty('还没记录，今天吃的随手记一笔吧。')}</div>
+    ${renderNutritionScan(ent)}
   `);
   return `<div class="xb-today-grid">
     <div>${dateNav+stats+wCard+waterCard+drinkCard+mealCard}</div>
@@ -635,7 +737,7 @@ function renderFood(){
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="font-size:13px;font-weight:700;color:${tone}">${title}</span><span style="font-size:11px;color:${C.muted}">${items.length} 件</span></div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px">
       ${items.map(x=>{const d=daysUntil(x.exp);return`<div style="background:${C.card};border:1px solid ${C.line};border-radius:14px;padding:10px;text-align:center;min-height:88px;display:flex;flex-direction:column;justify-content:center">
-        <div style="font-size:24px;margin-bottom:4px">${foodIcon(x.name)}</div>
+        <div style="font-size:24px;margin-bottom:4px">${e(x.sticker||foodIcon(x.name))}</div>
         <div style="font-size:13px;font-weight:600;color:${C.ink};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e(x.name)}</div>
         <div style="font-size:11px;color:${C.faint};margin-top:2px">${x.qty!=null?e(x.qty+' '+x.unit):(d==null?'未标日期':d<0?'已过期':'剩 '+d+' 天')}</div>
       </div>`}).join('')||`<div style="font-size:12px;color:${C.faint};padding:10px">这一层还是空的</div>`}
@@ -655,10 +757,24 @@ function renderFood(){
       ${fridgeShelf('未标日期',noDate,C.p,C.pS)}
     </div>
   `);
+  const goal=NUTRI_GOALS.find(x=>x.id===nutriGoal)||NUTRI_GOALS[0];
+  const goalPills=NUTRI_GOALS.map(g=>pill(goal.id===g.id,C.p,C.pS,g.icon+' '+g.name,'setNutriGoal',g.id)).join('');
+  const nutritionCard=card('营养小灯',`
+    <div style="font-size:12px;color:${C.muted};line-height:1.7;margin-bottom:10px">不是诊断，只是帮你在日常饮食里多留意容易被忽略的微量营养素。</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">${goalPills}</div>
+    <div style="background:${C.pS};border-radius:18px;padding:14px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><span class="xb-sticker" style="font-size:28px">${goal.icon}</span><div><div style="font-family:${SR};font-size:20px;font-weight:700;color:${C.ink}">${e(goal.name)}</div><div style="font-size:12px;color:${C.muted};line-height:1.6">${e(goal.tip)}</div></div></div>
+      <div style="font-size:12px;color:${C.muted};margin-top:10px">重点营养</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${goal.focus.map(x=>`<span style="background:${C.card};color:${C.p};border:1px solid ${C.line};border-radius:999px;padding:5px 9px;font-size:12px">${e(x)}</span>`).join('')}</div>
+      <div style="font-size:12px;color:${C.muted};margin-top:12px">常见来源</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${goal.foods.map(x=>`<span style="background:${C.card};color:${C.g};border-radius:999px;padding:5px 9px;font-size:12px">${e(x)}</span>`).join('')}</div>
+    </div>
+  `);
   const pList=sorted.map(x=>{
     const d=daysUntil(x.exp);
     const badge=d==null?'':d<0?`<span style="font-size:11px;background:#FBE3E3;color:#C03;padding:2px 7px;border-radius:6px;margin-left:6px">已过期</span>`:d<=2?`<span style="font-size:11px;background:#FCE9D6;color:#C7723;padding:2px 7px;border-radius:6px;margin-left:6px">剩${d}天</span>`:d<=5?`<span style="font-size:11px;background:#FBF2D6;color:#A88A2E;padding:2px 7px;border-radius:6px;margin-left:6px">剩${d}天</span>`:`<span style="font-size:11px;background:${C.gS};color:${C.g};padding:2px 7px;border-radius:6px;margin-left:6px">剩${d}天</span>`;
     return`<div style="display:flex;align-items:center;gap:8px;padding:10px 0;border-top:1px solid ${C.line}">
+      <span style="font-size:22px;width:28px;text-align:center">${e(x.sticker||foodIcon(x.name))}</span>
       <div style="flex:1"><div style="font-size:14px;font-weight:500">${e(x.name)}${badge}</div>
       ${x.qty!=null?`<div style="font-size:12px;color:${C.muted};margin-top:2px">${x.qty} ${e(x.unit)}</div>`:''}
       </div>
@@ -669,7 +785,9 @@ function renderFood(){
       ${xbtn('delP',x.id)}
     </div>`}).join('');
   const uOpts=UNITS.concat(['自定义']).map(u=>`<option value="${u}" ${pU===u?'selected':''}>${u}</option>`).join('');
+  const foodStickerPicks=FOOD_STICKERS.map(s=>`<button data-a="setPSticker" data-v="${e(s)}" style="width:34px;height:34px;border-radius:12px;border:1px solid ${(pSticker||foodIcon(pN))===s?C.g:C.line};background:${(pSticker||foodIcon(pN))===s?C.gS:C.card};font-size:18px;cursor:pointer">${e(s)}</button>`).join('');
   const pCard=card('我的食材库',`
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">${foodStickerPicks}</div>
     <div style="display:flex;gap:6px;margin-bottom:8px">
       <input id="pN" value="${e(pN)}" placeholder="食材名" style="${IS('flex:2')}">
       <input id="pQ" value="${e(pQ)}" inputmode="decimal" placeholder="数量" style="${IS('flex:1;min-width:0')}">
@@ -690,7 +808,7 @@ function renderFood(){
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:2px">${wList||empty('想吃的随手记下来。')}</div>
   `);
-  return fridgeCard+pCard+wCard
+  return fridgeCard+nutritionCard+pCard+wCard
 }
 
 // ═══════════════════════ TAB: RECIPES ═══════════════════════
@@ -934,6 +1052,40 @@ function renderEditExp(){
 
 // ═══════════════════════ TAB: LIST ═══════════════════════
 function renderList(){
+  function dueInfo(due){
+    if(!due)return {txt:'未设截止',tone:C.faint,bg:C.pS,rank:99999};
+    const left=diffD(today(),due);
+    if(left<0)return {txt:'逾期 '+Math.abs(left)+' 天',tone:C.w,bg:C.wS,rank:left};
+    if(left===0)return {txt:'今天截止',tone:C.w,bg:C.wS,rank:0};
+    if(left===1)return {txt:'明天截止',tone:C.g,bg:C.gS,rank:1};
+    return {txt:'还剩 '+left+' 天',tone:left<=3?C.w:C.g,bg:left<=3?C.wS:C.gS,rank:left}
+  }
+  function visibleItems(items){
+    let arr=[...(items||[])];
+    const filter=S.taskFilter||'all';
+    if(filter==='important')arr=arr.filter(x=>x.important&&!x.done);
+    else if(filter==='due')arr=arr.filter(x=>x.due&&!x.done);
+    else if(filter==='open')arr=arr.filter(x=>!x.done);
+    if(!dragOn){
+      const sort=S.taskSort||'due';
+      arr.sort((a,b)=>{
+        if(sort==='important')return Number(b.important)-Number(a.important)||dueInfo(a.due).rank-dueInfo(b.due).rank||a.id-b.id;
+        if(sort==='created')return a.id-b.id;
+        return dueInfo(a.due).rank-dueInfo(b.due).rank||Number(b.important)-Number(a.important)||a.id-b.id
+      })
+    }
+    return arr
+  }
+  const allTasks=S.lists.flatMap(l=>(l.items||[]).map(it=>({...it,listId:l.id,listTitle:l.title,listIcon:l.icon||'📝'})));
+  const urgent=allTasks.filter(x=>!x.done&&(x.important||x.due)).sort((a,b)=>Number(b.important)-Number(a.important)||dueInfo(a.due).rank-dueInfo(b.due).rank).slice(0,6);
+  const reminder=urgent.length?card('提醒小纸条',`
+    ${urgent.map(x=>{const d=dueInfo(x.due);return`<div style="display:flex;align-items:center;gap:9px;padding:8px 0;border-top:1px solid ${C.line}">
+      <span style="font-size:18px">${x.important?'⭐':x.listIcon}</span>
+      <div style="flex:1;min-width:0"><div style="font-size:14px;color:${C.ink};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e(x.text)}</div>
+      <div style="font-size:11px;color:${C.faint};margin-top:2px">${e(x.listTitle)}</div></div>
+      <span style="font-size:11px;background:${d.bg};color:${d.tone};padding:4px 8px;border-radius:999px;white-space:nowrap">${e(d.txt)}</span>
+    </div>`}).join('')}
+  `):'';
   const iconPick=LIST_ICONS.map(ic=>`<button data-a="pickListIcon" data-v="${ic}" style="width:34px;height:34px;border-radius:9px;border:none;cursor:pointer;font-size:18px;background:${nListIcon===ic?C.pS:'transparent'}">${ic}</button>`).join('');
   const addCard=card('新建清单',`
     <div style="font-size:12px;color:${C.muted};margin-bottom:6px">选个图标</div>
@@ -944,8 +1096,19 @@ function renderList(){
     </div>
   `);
   const dragOn=(S.listMode||'fold')==='drag';
-  const modeBar=`<div style="display:flex;gap:8px;margin-bottom:12px;align-items:center">
-    <span style="font-size:12px;color:${C.muted}">交互模式</span>
+  const filterBar=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+    ${pill((S.taskFilter||'all')==='all',C.p,C.pS,'全部','setTaskFilter','all')}
+    ${pill((S.taskFilter||'all')==='important',C.w,C.wS,'重要','setTaskFilter','important')}
+    ${pill((S.taskFilter||'all')==='due',C.g,C.gS,'有截止','setTaskFilter','due')}
+    ${pill((S.taskFilter||'all')==='open',C.p,C.pS,'未完成','setTaskFilter','open')}
+  </div>`;
+  const sortBar=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+    ${pill((S.taskSort||'due')==='due',C.p,C.pS,'按到期','setTaskSort','due')}
+    ${pill((S.taskSort||'due')==='important',C.w,C.wS,'按重要','setTaskSort','important')}
+    ${pill((S.taskSort||'due')==='created',C.g,C.gS,'原顺序','setTaskSort','created')}
+  </div>`;
+  const modeBar=`<div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
+    <span style="font-size:12px;color:${C.muted}">收纳方式</span>
     <button data-a="setListMode" data-v="fold" style="${(S.listMode||'fold')==='fold'?BS(C.p,'padding:5px 12px;font-size:13px'):BS(C.pS,'padding:5px 12px;font-size:13px;color:'+C.p)}">点击折叠</button>
     <button data-a="setListMode" data-v="drag" style="${dragOn?BS(C.p,'padding:5px 12px;font-size:13px'):BS(C.pS,'padding:5px 12px;font-size:13px;color:'+C.p)}">拖拽排序</button>
   </div>`;
@@ -953,13 +1116,22 @@ function renderList(){
     const done=l.items.filter(i=>i.done).length;
     const collapsed=listCollapse[l.id];
     const icon=l.icon||'📝';
-    const items=collapsed?'':l.items.map(it=>`<div style="display:flex;align-items:center;gap:10px;padding:7px 0">
+    const items=collapsed?'':visibleItems(l.items).map(it=>{const d=dueInfo(it.due);return`<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid ${C.line}">
       <button data-a="toggleItem" data-lid="${l.id}" data-id="${it.id}" style="width:22px;height:22px;border-radius:7px;border:2px solid ${it.done?C.g:C.line};background:${it.done?C.g:'transparent'};color:#fff;font-size:13px;cursor:pointer;flex-shrink:0">${it.done?'✓':''}</button>
-      <span style="flex:1;font-size:14px;color:${it.done?C.faint:C.ink};text-decoration:${it.done?'line-through':'none'}">${e(it.text)}</span>
+      <button data-a="toggleImportant" data-lid="${l.id}" data-id="${it.id}" style="background:none;border:none;color:${it.important?C.w:C.faint};font-size:17px;cursor:pointer;line-height:1">${it.important?'★':'☆'}</button>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;color:${it.done?C.faint:C.ink};text-decoration:${it.done?'line-through':'none'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e(it.text)}</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap">
+          <span style="font-size:11px;background:${d.bg};color:${d.tone};padding:2px 7px;border-radius:999px">${e(d.txt)}</span>
+          ${it.due?`<span style="font-size:11px;color:${C.faint}">${e(it.due)}</span>`:''}
+        </div>
+      </div>
       ${xbtn('delItem',it.id+'/'+l.id)}
-    </div>`).join('');
-    const inputRow=collapsed?'':`<div style="display:flex;gap:8px;margin-top:8px">
-        <input id="li_${l.id}" value="${e(liIn[l.id]||'')}" placeholder="加一项…" style="${IS()}">
+    </div>`}).join('');
+    const inputRow=collapsed?'':`<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+        <input id="li_${l.id}" value="${e(liIn[l.id]||'')}" placeholder="加一项…" style="${IS('flex:1 1 180px;min-width:0')}">
+        <input id="liD_${l.id}" type="date" value="${e(liDue[l.id]||'')}" style="${IS('flex:1 1 128px;padding:10px 8px')}">
+        <button data-a="toggleNewImportant" data-lid="${l.id}" style="${BS(liImp[l.id]?C.w:C.wS,'color:'+(liImp[l.id]?'#fff':C.w)+';padding:10px 12px')}">${liImp[l.id]?'★':'☆'}</button>
         <button data-a="addItem" data-lid="${l.id}" style="${BS(C.g)}">＋</button>
       </div>`;
     const dragAttrs=dragOn?`draggable="true" data-drag="${l.id}"`:'';
@@ -977,7 +1149,7 @@ function renderList(){
       ${items}${inputRow}
     </div>`
   }).join('');
-  return addCard+(S.lists.length?modeBar:'')+(lists||empty('还没有清单，新建一个吧。'))
+  return addCard+reminder+(S.lists.length?filterBar+sortBar+modeBar:'')+(lists||empty('还没有清单，新建一个吧。'))
 }
 
 // ═══════════════════════ TAB: VOCAB（英语单词）═══════════════════════
@@ -1784,11 +1956,17 @@ function renderSettings(){
     <input data-label="${k}" value="${e(lab(k))}" style="${IS('flex:1;padding:8px 10px;font-size:13px')}">
   </div>`).join('');
   const titleValue=(S.appTitle&&S.appTitle!=='小本')?S.appTitle:'';
+  const iconPicks=APP_ICONS.map(x=>`<button data-a="setAppIcon" data-v="${e(x)}" style="width:34px;height:34px;border-radius:12px;border:1px solid ${(S.appIcon||'✍️')===x?C.p:C.line};background:${(S.appIcon||'✍️')===x?C.pS:C.card};font-size:17px;cursor:pointer">${e(x)}</button>`).join('');
+  const symbolPicks=CUTE_SYMBOLS.map(x=>`<button data-a="appendSymbol" data-v="${e(x)}" style="border:1px solid ${C.line};background:${C.pS};color:${C.p};border-radius:999px;padding:6px 10px;font-size:13px;cursor:pointer">${e(x.trim())}</button>`).join('');
   const textCard=card('文字自定义',`
     <div style="font-size:12px;color:${C.muted};line-height:1.7;margin-bottom:10px">这里改的是页面上最常出现的名字和底部标签。想好新名字后随时回来换。</div>
     <input id="appNameIn" value="${e(S.appName||'')}" placeholder="页面主标题" style="${IS('margin-bottom:8px')}">
     <input id="appKickerIn" value="${e(S.appKicker||'')}" placeholder="顶部小字，比如 daily log" style="${IS('margin-bottom:8px')}">
     <input id="appTitleIn" value="${e(titleValue)}" placeholder="浏览器/添加到桌面的名字；留空则跟随主标题" style="${IS('margin-bottom:12px')}">
+    <div style="font-size:12px;color:${C.muted};margin-bottom:8px">页面小 icon</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">${iconPicks}</div>
+    <div style="font-size:12px;color:${C.muted};margin-bottom:8px">符号小抽屉 · 点一下会加到主标题后面</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">${symbolPicks}</div>
     <div style="font-size:12px;color:${C.muted};margin-bottom:8px">底部标签</div>
     ${labelInputs}
     <div style="display:flex;gap:8px;margin-top:10px">
@@ -1884,7 +2062,7 @@ function render(){
           <button data-a="openSett" style="width:40px;height:40px;border-radius:12px;border:1px solid ${C.line};background:${C.card};color:${C.ink};font-size:18px;cursor:pointer">⚙️</button>
         </div>
         <div class="xb-hand-note" style="background:${C.card};border-radius:18px;padding:10px 13px;margin-bottom:16px;color:${C.muted};font-size:13px;display:flex;align-items:center;gap:8px">
-          <span class="xb-sticker" style="font-size:19px">✍️</span><span>${e(tabMood())}</span>
+          <span class="xb-sticker" style="font-size:19px">${e(S.appIcon||'✍️')}</span><span>${e(tabMood())}</span>
         </div>
         ${body}
       </div>`
@@ -1941,15 +2119,17 @@ function bindEvents(){
     if(a==='saveW'){const raw=document.getElementById('wIn')?.value||'';const kg=disp2kg(raw);mutE(e=>{e.weight=kg});return}
     if(a==='addWater'){mutE(e=>{e.water=(e.water||0)+1});return}
     if(a==='subWater'){mutE(e=>{e.water=Math.max(0,(e.water||0)-1)});return}
-    if(a==='setDType'){dType=v;render();return}
+    if(a==='setDType'){dType=v;dSticker='';render();return}
     if(a==='setDSugar'){dSugar=v;render();return}
+    if(a==='setDSticker'){dSticker=v;render();return}
     if(a==='addDrink'){
       const name=(document.getElementById('dName')?.value||'').trim()||dType;
       const size=parseFloat(document.getElementById('dSize')?.value||'');
       const caf=parseFloat(document.getElementById('dCaf')?.value||'');
       const note=(document.getElementById('dNote')?.value||'').trim();
-      dName='';dSize='';dCaf='';dNote='';
-      mutE(e=>{e.drinks=[...(e.drinks||[]),{id:Date.now(),type:dType,name,size:isNaN(size)?null:size,sugar:dSugar,caf:isNaN(caf)?null:caf,note}]});
+      const sticker=dSticker||drinkSticker(dType,name);
+      dName='';dSize='';dCaf='';dNote='';dSticker='';
+      mutE(e=>{e.drinks=[...(e.drinks||[]),{id:Date.now(),type:dType,name,size:isNaN(size)?null:size,sugar:dSugar,caf:isNaN(caf)?null:caf,note,sticker}]});
       return
     }
     if(a==='delDrink'){mutE(e=>{e.drinks=(e.drinks||[]).filter(x=>String(x.id)!==id)});return}
@@ -1964,7 +2144,9 @@ function bindEvents(){
     if(a==='draftAddItem'){if(aiDraft){aiDraft.items.push({name:'',qty:'',cal:''});render()}return}
     if(a==='draftCancel'){aiDraft=null;render();return}
     if(a==='draftConfirm'){await confirmDraft();return}
-    if(a==='addP'){const n=(document.getElementById('pN')?.value||'').trim();if(!n)return;const q=parseFloat(document.getElementById('pQ')?.value||'');let unit=pU;if(pU==='自定义'){unit=(pUcustom||'').trim()||'个'}pN='';pQ='';pE='';pUcustom='';save({...S,pantry:[...S.pantry,{id:Date.now(),name:n,qty:isNaN(q)?null:q,unit,exp:document.getElementById('pE')?.value||null}]});return}
+    if(a==='setPSticker'){pSticker=v;render();return}
+    if(a==='setNutriGoal'){nutriGoal=v;render();return}
+    if(a==='addP'){const n=(document.getElementById('pN')?.value||'').trim();if(!n)return;const q=parseFloat(document.getElementById('pQ')?.value||'');let unit=pU;if(pU==='自定义'){unit=(pUcustom||'').trim()||'个'}const sticker=pSticker||foodIcon(n);pN='';pQ='';pE='';pUcustom='';pSticker='';save({...S,pantry:[...S.pantry,{id:Date.now(),name:n,qty:isNaN(q)?null:q,unit,exp:document.getElementById('pE')?.value||null,sticker}]});return}
     if(a==='stepP'){const d=parseFloat(v);save({...S,pantry:S.pantry.map(x=>x.id==id?{...x,qty:x.qty==null?null:Math.max(0,Math.round((x.qty+d)*10)/10)}:x)});return}
     if(a==='delP'){save({...S,pantry:S.pantry.filter(x=>String(x.id)!==id)});return}
     if(a==='addW'){const t=(document.getElementById('wiIn')?.value||'').trim();if(!t)return;wiTxt='';save({...S,wishlist:[...S.wishlist,{id:Date.now(),name:t}]});return}
@@ -1999,10 +2181,14 @@ function bindEvents(){
     if(a==='addList'){const t=(document.getElementById('nList')?.value||'').trim();if(!t)return;const ic=nListIcon;nList='';nListIcon='📝';save({...S,lists:[{id:Date.now(),title:t,icon:ic,items:[]},...S.lists]});return}
     if(a==='pickListIcon'){nListIcon=v;render();return}
     if(a==='setListMode'){save({...S,listMode:v});return}
+    if(a==='setTaskFilter'){save({...S,taskFilter:v});return}
+    if(a==='setTaskSort'){save({...S,taskSort:v});return}
     if(a==='toggleCollapse'){listCollapse[id]=!listCollapse[id];render();return}
     if(a==='delList'){save({...S,lists:S.lists.filter(l=>String(l.id)!==id)});return}
-    if(a==='addItem'){const iid=el.dataset.lid;const inEl=document.getElementById('li_'+iid);const t=(inEl?.value||'').trim();if(!t)return;liIn[iid]='';save({...S,lists:S.lists.map(l=>String(l.id)===iid?{...l,items:[...l.items,{id:Date.now(),text:t,done:false}]}:l)});return}
+    if(a==='toggleNewImportant'){const iid=el.dataset.lid;liImp[iid]=!liImp[iid];render();return}
+    if(a==='addItem'){const iid=el.dataset.lid;const inEl=document.getElementById('li_'+iid);const t=(inEl?.value||'').trim();if(!t)return;const due=document.getElementById('liD_'+iid)?.value||'';const important=!!liImp[iid];liIn[iid]='';liDue[iid]='';liImp[iid]=false;save({...S,lists:S.lists.map(l=>String(l.id)===iid?{...l,items:[...l.items,{id:Date.now(),text:t,done:false,due:due||null,important}]}:l)});return}
     if(a==='toggleItem'){const iid=el.dataset.lid;save({...S,lists:S.lists.map(l=>String(l.id)===iid?{...l,items:l.items.map(it=>String(it.id)===id?{...it,done:!it.done}:it)}:l)});return}
+    if(a==='toggleImportant'){const iid=el.dataset.lid;save({...S,lists:S.lists.map(l=>String(l.id)===iid?{...l,items:l.items.map(it=>String(it.id)===id?{...it,important:!it.important}:it)}:l)});return}
     if(a==='delItem'){const[iid,llid]=id.split('/');save({...S,lists:S.lists.map(l=>String(l.id)===llid?{...l,items:l.items.filter(it=>String(it.id)!==iid)}:l)});return}
     if(a==='setJMood'){jMood=v;render();return}
     if(a==='setJFont'){jFont=v;render();return}
@@ -2043,13 +2229,24 @@ function bindEvents(){
       save({...S,apiKey:k});
       return
     }
+    if(a==='setAppIcon'){save({...S,appIcon:v});return}
+    if(a==='appendSymbol'){
+      const input=document.getElementById('appNameIn');
+      if(input){
+        const start=input.selectionStart??input.value.length,end=input.selectionEnd??input.value.length;
+        input.value=input.value.slice(0,start)+v+input.value.slice(end);
+        input.focus();
+        input.setSelectionRange(start+v.length,start+v.length);
+      }
+      return
+    }
     if(a==='saveTextPrefs'){
       const labels={...TAB_LABELS};
       document.querySelectorAll('[data-label]').forEach(inp=>{labels[inp.dataset.label]=(inp.value||TAB_LABELS[inp.dataset.label]||'').trim()});
       save({...S,appName:(document.getElementById('appNameIn')?.value||'').trim()||'饮食 & 体重小本',appKicker:(document.getElementById('appKickerIn')?.value||'').trim()||'daily log',appTitle:(document.getElementById('appTitleIn')?.value||'').trim(),labels});
       return
     }
-    if(a==='resetTextPrefs'){save({...S,appName:'饮食 & 体重小本',appKicker:'daily log',appTitle:'',labels:{...TAB_LABELS}});return}
+    if(a==='resetTextPrefs'){save({...S,appName:'饮食 & 体重小本',appKicker:'daily log',appTitle:'',appIcon:'✍️',labels:{...TAB_LABELS}});return}
     if(a==='dictDl'){await downloadDict();return}
     if(a==='dictReset'){if(confirm('清除本机已缓存的词典并重新下载？'))await resetDict();return}
     if(a==='startReview'){startReview(v);return}
@@ -2107,11 +2304,11 @@ function bindEvents(){
     if(el.dataset&&el.dataset.a==='draftEdit'&&aiDraft){const i=+el.dataset.id,fld=el.dataset.f;if(aiDraft.items[i]){aiDraft.items[i][fld]=el.value}return}
     if(el.id==='wIn'){wIn=el.value}
     if(el.id==='mIn'){mTxt=el.value}
-    if(el.id==='dName'){dName=el.value}
+    if(el.id==='dName'){dName=el.value;if(!dSticker){clearTimeout(window._ds);window._ds=setTimeout(render,250)}}
     if(el.id==='dSize'){dSize=el.value}
     if(el.id==='dCaf'){dCaf=el.value}
     if(el.id==='dNote'){dNote=el.value}
-    if(el.id==='pN'){pN=el.value}
+    if(el.id==='pN'){pN=el.value;clearTimeout(window._ps);window._ps=setTimeout(render,250);return}
     if(el.id==='pQ'){pQ=el.value}
     if(el.id==='pE'){pE=el.value}
     if(el.id==='pU'){pU=el.value;render();return}
@@ -2131,6 +2328,7 @@ function bindEvents(){
     if(el.id==='jTxt'){jTxt=el.value}
     if(el.id==='meTxt'){meTxt=el.value}
     if(el.id&&el.id.startsWith('li_')){const lid=el.id.slice(3);liIn[lid]=el.value}
+    if(el.id&&el.id.startsWith('liD_')){const lid=el.id.slice(4);liDue[lid]=el.value}
     if(el.id==='accentPicker'){sHsl=h2hsl(el.value);save({...S,accent:el.value});return}
     if(el.id==='bgPicker'){save({...S,bgc:el.value});return}
   };
