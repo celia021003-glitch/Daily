@@ -20,7 +20,34 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;heigh
 @keyframes su{from{transform:translateY(42px);opacity:.4}to{transform:translateY(0);opacity:1}}
 @keyframes ps{0%,100%{box-shadow:0 0 8px 2px rgba(255,255,255,.2)}50%{box-shadow:0 0 18px 6px rgba(255,255,255,.5)}}
 @keyframes spin{to{transform:rotate(360deg)}}
+@keyframes bob{0%,100%{transform:translateY(0) rotate(-1deg)}50%{transform:translateY(-4px) rotate(1deg)}}
+@keyframes wink{0%,100%{transform:scale(1)}45%{transform:scale(1.04)}}
 .spin{display:inline-block;animation:spin .9s linear infinite}
+.xb-paper-card{position:relative;overflow:hidden;border:1px solid rgba(130,120,150,.12);transition:transform .18s ease,box-shadow .18s ease}
+.xb-paper-card:before{content:"";position:absolute;left:18px;right:18px;top:0;height:3px;background:linear-gradient(90deg,rgba(255,255,255,.1),rgba(255,255,255,.75),rgba(255,255,255,.1));opacity:.8}
+.xb-paper-card:hover{transform:translateY(-1px);box-shadow:0 10px 26px rgba(54,46,67,.08)!important}
+.xb-card-title{display:flex;align-items:center;gap:7px}
+.xb-card-title:before{content:"✦";font-size:11px;opacity:.7}
+.xb-hand-note{border:1px dashed rgba(120,110,140,.28);box-shadow:0 8px 24px rgba(54,46,67,.06);animation:wink 6s ease-in-out infinite}
+.xb-sticker{animation:bob 4.5s ease-in-out infinite;transform-origin:center}
+.xb-drink-day{min-height:62px;border:none;border-radius:16px;padding:7px 5px;text-align:left;cursor:pointer;position:relative;overflow:hidden;transition:transform .15s ease}
+.xb-drink-day:hover{transform:translateY(-2px)}
+.xb-drink-dot{position:absolute;right:6px;bottom:5px;font-size:20px;filter:drop-shadow(0 2px 4px rgba(0,0,0,.1))}
+.xb-dock{box-shadow:0 -10px 30px rgba(45,38,58,.08)}
+@media (min-width: 900px){
+  .xb-shell{max-width:1040px!important;padding-left:28px!important;padding-right:28px!important}
+  .xb-card-grid{display:grid!important;grid-template-columns:1.05fr .95fr;gap:16px;align-items:start}
+  .xb-wide{grid-column:1/-1}
+  .xb-vocab-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .xb-vocab-list > div{margin-bottom:0!important}
+  .xb-detail-grid{display:grid;grid-template-columns:minmax(0,1.08fr) minmax(320px,.92fr);gap:16px;align-items:start}
+  .xb-detail-wide{grid-column:1/-1}
+  .xb-today-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(340px,.82fr);gap:16px;align-items:start}
+  .xb-today-wide{grid-column:1/-1}
+}
+@media (min-width: 1180px){
+  .xb-shell{max-width:1120px!important}
+}
 </style>
 </head>
 <body>
@@ -48,6 +75,9 @@ const TAPES=['#D9C7A7','#C7D9C9','#E3C2CB','#C2CFE3','#E0CFE8'];
 const STICKERS=['🌷','⭐️','🍃','☕️','🐱','🌙','🎀','🫧'];
 const UNITS=['个','g','ml','包','份','把','盒','瓶','颗'];
 const MTYPES=['早餐','午餐','晚餐','加餐'];
+const DTYPES=['咖啡','奶茶','茶','饮料','酒','奶/豆浆','果汁','其他'];
+const SUGARS=['无糖','少糖','半糖','正常糖','全糖'];
+const TAB_LABELS={today:'今日',food:'食材',recipe:'菜谱',bills:'账单',list:'清单',vocab:'单词',journal:'手帐',me:'我'};
 const FLOW={light:{c:'#F0B6C0',t:'轻'},medium:{c:'#E18599',t:'中'},heavy:{c:'#C75B70',t:'多'}};
 const SYMS=['痛经','乏力','情绪','腹胀','头痛','嗜睡'];
 const CATS=[['餐饮','🍜'],['交通','🚇'],['购物','🛍️'],['学习','📚'],['居家','🏠'],['娱乐','🎮'],['其他','✨']];
@@ -116,12 +146,14 @@ const idb={
 };
 
 // ═══════════════════════ STATE ═══════════════════════
-let S={entries:{},pantry:[],wishlist:[],lists:[],journal:[],frags:[],period:{days:{},syms:{}},expenses:[],theme:'mist',accent:null,accentA:0.13,bgc:null,cur:'$',apiKey:'',wunit:'kg',billTags:['必需','想要','请客','囤货'],listMode:'fold',vocab:[],vocabNotes:{},vocabAi:{},vocabSynonyms:{},aiUsage:{count:0,month:''},reviewHistory:{},dictReady:false};
+let S={entries:{},pantry:[],wishlist:[],lists:[],journal:[],frags:[],period:{days:{},syms:{}},expenses:[],theme:'mist',accent:null,accentA:0.13,bgc:null,cur:'$',apiKey:'',wunit:'kg',billTags:['必需','想要','请客','囤货'],listMode:'fold',vocab:[],vocabNotes:{},vocabAi:{},vocabSynonyms:{},aiUsage:{count:0,month:''},reviewHistory:{},dictReady:false,recipeFavs:[],recipeNotes:{},recipeCustom:[],recipeLinks:[],appName:'饮食 & 体重小本',appKicker:'daily log',appTitle:'小本',labels:{...TAB_LABELS}};
 let IC={};
 let TAB='today',DATE=dstr(new Date());
 let wIn='',mTxt='',mType='早餐';
+let dName='',dType='咖啡',dSize='',dSugar='正常糖',dCaf='',dNote='';
 let pN='',pQ='',pU='个',pE='',pUcustom='';
 let wiTxt='';
+let rSearch='',rWish='',rMode='mine',rAiIdea='';
 let nList='',nListIcon='📝',liIn={};
 let listCollapse={},dragListId=null;
 let jTxt='',jMood='✨',jFont='kai',jHi=null,jTape=TAPES[0],jSt=null,jImgs=[];
@@ -188,7 +220,7 @@ function resolveC(){
 function wUnit(){return S.wunit||'kg'}
 function kg2disp(kg){if(kg==null)return null;return wUnit()==='斤'?Math.round(kg*2*10)/10:kg}
 function disp2kg(v){if(v==null||v==='')return null;const n=parseFloat(v);if(isNaN(n))return null;return wUnit()==='斤'?Math.round(n/2*10)/10:Math.round(n*10)/10}
-function getE(d){d=d||DATE;return S.entries[d]||{weight:null,meals:[],water:0,photos:[]}}
+function getE(d){d=d||DATE;return S.entries[d]||{weight:null,meals:[],water:0,photos:[],drinks:[]}}
 function wSer(){return Object.keys(S.entries).filter(d=>S.entries[d].weight!=null).sort().map(d=>({d,w:S.entries[d].weight,l:d.slice(5)}))}
 function cycInfo(){
   const pd=S.period,days=Object.keys(pd.days||{}).sort(),gs=[];let cur=null;
@@ -283,10 +315,17 @@ async function save(next){S=next;try{await idb.set(SKEY,JSON.stringify(next))}ca
 function mutE(fn){
   const n={...S,entries:{...S.entries}};
   const e={...getE()};e.meals=[...(e.meals||[])];e.photos=[...(e.photos||[])];
+  e.drinks=[...(e.drinks||[])];
   fn(e);n.entries[DATE]=e;save(n)
 }
 async function loadState(){
-  try{const v=await idb.get(SKEY);if(v){const d=JSON.parse(v);S={...S,...d,period:d.period||{days:{},syms:{}},expenses:d.expenses||[],frags:d.frags||[],apiKey:d.apiKey||'',wunit:d.wunit||'kg',billTags:(d.billTags&&d.billTags.length)?d.billTags:['必需','想要','请客','囤货'],listMode:d.listMode||'fold',vocab:d.vocab||[],vocabNotes:d.vocabNotes||{},vocabAi:d.vocabAi||{},vocabSynonyms:d.vocabSynonyms||{},aiUsage:d.aiUsage||{count:0,month:''},reviewHistory:d.reviewHistory||{}}}}catch(e){}
+  try{
+    const v=await idb.get(SKEY);
+    if(v){
+      const d=JSON.parse(v);
+      S={...S,...d,period:d.period||{days:{},syms:{}},expenses:d.expenses||[],frags:d.frags||[],apiKey:d.apiKey||'',wunit:d.wunit||'kg',billTags:(d.billTags&&d.billTags.length)?d.billTags:['必需','想要','请客','囤货'],listMode:d.listMode||'fold',vocab:d.vocab||[],vocabNotes:d.vocabNotes||{},vocabAi:d.vocabAi||{},vocabSynonyms:d.vocabSynonyms||{},aiUsage:d.aiUsage||{count:0,month:''},reviewHistory:d.reviewHistory||{},recipeFavs:d.recipeFavs||[],recipeNotes:d.recipeNotes||{},recipeCustom:d.recipeCustom||[],recipeLinks:d.recipeLinks||[],appName:d.appName||'饮食 & 体重小本',appKicker:d.appKicker||'daily log',appTitle:d.appTitle||'小本',labels:{...TAB_LABELS,...(d.labels||{})}}
+    }
+  }catch(e){}
   try{
     const dict=await dictDB.loadAll();
     const words=dictSize(dict);
@@ -354,12 +393,92 @@ async function confirmDraft(){
 // ═══════════════════════ HTML HELPERS ═══════════════════════
 function IS(ex){return`border:1px solid ${C.line};border-radius:10px;padding:10px 12px;font-size:14px;outline:none;color:${C.ink};background:#FBFAFC;width:100%;box-sizing:border-box;${ex||''}`}
 function BS(col,ex){return`background:${col};color:#fff;border:none;border-radius:10px;padding:10px 16px;font-size:14px;cursor:pointer;white-space:nowrap;${ex||''}`}
-function card(title,body){return`<div style="background:${C.card};border-radius:16px;padding:16px 18px;margin-bottom:14px;box-shadow:0 1px 4px rgba(0,0,0,.06)">${title?`<div style="font-size:13px;font-weight:600;color:${C.muted};margin-bottom:12px">${e(title)}</div>`:''}</div>`.replace('</div>',body+'</div>')}
+function card(title,body){return`<div class="xb-paper-card" style="background:${C.card};border-radius:20px;padding:16px 18px;margin-bottom:14px;box-shadow:0 4px 16px rgba(50,42,62,.055)">${title?`<div class="xb-card-title" style="font-size:13px;font-weight:700;color:${C.muted};margin-bottom:12px;letter-spacing:.2px">${e(title)}</div>`:''}${body}</div>`}
 function e(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function pill(on,col,soft,label,action,val){return`<button data-a="${action||''}" data-v="${e(val??label)}" style="padding:5px 12px;border-radius:999px;border:none;cursor:pointer;font-size:13px;background:${on?col:soft};color:${on?'#fff':col}">${e(label)}</button>`}
 function xbtn(action,id){return`<button data-a="${action}" data-id="${id}" style="background:none;border:none;color:${C.faint};cursor:pointer;font-size:18px;line-height:1;padding:0;flex-shrink:0">×</button>`}
-function statBox(label,val,tone,bg){return`<div style="flex:1;background:${bg};border-radius:14px;padding:12px 14px"><div style="font-size:11px;color:${C.muted};margin-bottom:4px">${e(label)}</div><div style="font-family:${SR};font-size:22px;font-weight:600;color:${tone}">${e(val)}</div></div>`}
+function statBox(label,val,tone,bg){return`<div style="flex:1;background:${bg};border-radius:16px;padding:12px 14px;border:1px solid rgba(255,255,255,.5)"><div style="font-size:11px;color:${C.muted};margin-bottom:4px">${e(label)}</div><div style="font-family:${SR};font-size:22px;font-weight:600;color:${tone}">${e(val)}</div></div>`}
 function empty(txt){return`<div style="text-align:center;color:${C.faint};font-size:13px;padding:18px 0">${e(txt)}</div>`}
+function lab(id){return (S.labels&&S.labels[id])||TAB_LABELS[id]||id}
+function foodIcon(n){
+  const s=String(n||'');
+  if(/[鸡蛋蛋]/.test(s))return'🥚';if(/[牛猪羊肉鸡鸭鱼虾蟹]/.test(s))return'🥩';if(/[奶酸奶芝士]/.test(s))return'🥛';
+  if(/[米饭面粉面包吐司燕麦粉条乌冬意面]/.test(s))return'🍚';if(/[番茄西红柿胡萝卜土豆白菜青菜生菜黄瓜蘑菇茄子西兰花南瓜]/.test(s))return'🥬';
+  if(/[香蕉苹果蓝莓水果柠檬牛油果]/.test(s))return'🍎';if(/[咖喱酱油味噌豆瓣酱]/.test(s))return'🧂';return'🍽️'
+}
+function drinkIcon(type){
+  return type==='咖啡'?'☕':type==='奶茶'?'🧋':type==='茶'?'🍵':type==='酒'?'🍷':type==='果汁'?'🧃':type==='奶/豆浆'?'🥛':type==='饮料'?'🥤':'✨'
+}
+function tabMood(){
+  const map={
+    today:'把今天收进小杯子里，慢慢记就很好。',
+    food:'打开小冰箱看一眼，快过期的先被温柔安排。',
+    recipe:'从现有食材里挑一口想吃的香气。',
+    bills:'钱花到哪里，也可以像贴便签一样记下来。',
+    list:'把脑袋里的待办先放到纸上。',
+    vocab:'今天遇见的词，先收起来再慢慢熟。',
+    journal:'这里不用总结人生，只收一点当下。',
+    me:'给自己留一小块安静的地方。'
+  };
+  return map[TAB]||'今天也有一点东西值得留下。'
+}
+function renderDrinkCalendar(){
+  const ym=DATE.slice(0,7),parts=ym.split('-').map(Number),y=parts[0],m=parts[1];
+  const days=new Date(y,m,0).getDate(),first=new Date(y,m-1,1).getDay();
+  const cells=[];
+  for(let i=0;i<first;i++)cells.push('<div></div>');
+  let total=0,caf=0;const fav={};
+  for(let d=1;d<=days;d++){
+    const ds=ym+'-'+p2(d),arr=(S.entries[ds]?.drinks)||[],on=ds===DATE,main=arr[0];
+    total+=arr.length;arr.forEach(x=>{caf+=Number(x.caf)||0;const k=x.name||x.type;fav[k]=(fav[k]||0)+1});
+    cells.push(`<button data-a="goDate" data-v="${ds}" class="xb-drink-day" style="background:${on?C.pS:(arr.length?C.wS:C.card)};color:${C.ink};border:${on?'1px solid '+C.p:'1px solid '+C.line}">
+      <span style="font-size:11px;color:${on?C.p:C.muted};font-weight:${on?700:500}">${d}</span>
+      ${main?`<span class="xb-drink-dot">${drinkIcon(main.type)}</span>`:''}
+      ${arr.length>1?`<span style="position:absolute;right:5px;top:5px;background:${C.p};color:#fff;border-radius:999px;font-size:10px;min-width:18px;text-align:center;padding:2px 5px">${arr.length}</span>`:''}
+    </button>`)
+  }
+  const favName=Object.entries(fav).sort((a,b)=>b[1]-a[1])[0]?.[0]||'还没有';
+  const week=['日','一','二','三','四','五','六'].map(x=>`<div style="font-size:11px;color:${C.faint};text-align:center">${x}</div>`).join('');
+  return card('饮品月历',`
+    <div class="xb-hand-note" style="background:${C.pS};border-radius:18px;padding:12px 14px;margin-bottom:12px;color:${C.muted};font-size:13px;line-height:1.65">
+      <span class="xb-sticker" style="display:inline-block;margin-right:6px">☕</span>它不是为了督促你，只是帮你看到这个月留下了哪些小杯子。
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:6px">${week}</div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px">${cells.join('')}</div>
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+      ${statBox('本月饮品',total+'杯',C.p,C.pS)}
+      ${statBox('常出现',favName,C.w,C.wS)}
+      ${statBox('咖啡因',caf?Math.round(caf)+'mg':'—',caf>900?C.w:C.g,caf>900?C.wS:C.gS)}
+    </div>
+  `)
+}
+function vocabLevelName(box){
+  return ['','初学','熟悉','记得','较熟','熟练','掌握','精通','永记'][Math.max(1,Math.min(8,box||1))]||'初学'
+}
+function splitLines(txt,max){
+  return String(txt||'').replace(/\\n/g,'\n').split('\n').map(x=>x.trim()).filter(Boolean).slice(0,max||8)
+}
+function cleanTransLine(s){
+  return String(s||'').replace(/^[a-z.]+\s*/i,'').trim()
+}
+function vocabTagBadges(tag){
+  const tagMap={'zk':'中考','gk':'高考','cet4':'CET4','cet6':'CET6','ky':'考研','ielts':'雅思','toefl':'托福','gre':'GRE'};
+  return String(tag||'').split(/\s+/).filter(Boolean).map(t=>tagMap[t]?`<span style="font-size:11px;background:${C.wS};color:${C.w};padding:3px 8px;border-radius:999px">${tagMap[t]}</span>`:'').join('')
+}
+function exchangeBadgesHtml(exchange){
+  const labels={'p':'过去式','d':'过去分词','i':'现在分词','3':'三单','r':'比较级','t':'最高级','s':'复数','0':'原形','1':'变化'};
+  return String(exchange||'').split('/').map(p=>{const[k,v]=p.split(':');return v?`<span style="display:inline-flex;font-size:12px;background:${C.gS};color:${C.g};padding:5px 9px;border-radius:999px;margin:0 5px 6px 0">${labels[k]||k}: ${e(v)}</span>`:''}).join('')
+}
+function phraseCards(word){
+  const w=e(word);
+  const rows=[
+    ['in '+w,'在 '+w+' 中 / 以 '+w+' 方式'],
+    [w+' of','... 的 '+w],
+    [w+' for','用于 ... 的 '+w],
+    ['the '+w,'特指这个 '+w]
+  ];
+  return rows.map(([a,b])=>`<div style="padding:10px 12px;border-radius:12px;background:${C.pS};font-size:13px;line-height:1.6"><span style="font-family:${SR};font-size:15px;color:${C.p};font-weight:600">${a}</span><br><span style="color:${C.muted}">${b}</span></div>`).join('')
+}
 
 // ═══════════════════════ CHART ═══════════════════════
 function renderChart(ser){
@@ -415,6 +534,35 @@ function renderToday(){
     <div style="font-size:12px;color:${C.muted};margin-top:6px">今天 ${ent.water||0} 杯${(ent.water||0)>=6?' · 喝得不错 🌿':''}</div></div>
     ${(ent.water||0)>0?`<button data-a="subWater" style="${BS(C.line)};color:${C.muted}">−1</button>`:''}
   </div>`);
+  const drinks=ent.drinks||[];
+  const cafTotal=drinks.reduce((s,x)=>s+(Number(x.caf)||0),0);
+  const drinkTypePills=DTYPES.map(t=>pill(dType===t,C.p,C.pS,t,'setDType',t)).join('');
+  const sugarPills=SUGARS.map(s=>pill(dSugar===s,C.w,C.wS,s,'setDSugar',s)).join('');
+  const drinkList=drinks.map(x=>`<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-top:1px solid ${C.line}">
+    <span class="xb-sticker" style="font-size:22px;line-height:1">${drinkIcon(x.type)}</span>
+    <div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600;color:${C.ink}">${e(x.name||x.type)} <span style="font-size:11px;color:${C.muted};font-weight:400">${e(x.type)}</span></div>
+    <div style="font-size:12px;color:${C.muted};margin-top:2px">${x.size?e(x.size+'ml · '):''}${e(x.sugar||'')}${x.caf?` · 咖啡因 ${e(x.caf)}mg`:''}${x.note?` · ${e(x.note)}`:''}</div></div>
+    ${xbtn('delDrink',x.id)}
+  </div>`).join('');
+  const drinkCalendar=renderDrinkCalendar();
+  const drinkCard=card('今天喝了什么',`
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">${drinkTypePills}</div>
+    <div style="display:flex;gap:8px;margin-bottom:8px">
+      <input id="dName" value="${e(dName)}" placeholder="拿铁、乌龙茶、珍珠奶茶…" style="${IS('flex:2')}">
+      <input id="dSize" value="${e(dSize)}" inputmode="numeric" placeholder="ml" style="${IS('flex:0 0 82px')}">
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">${sugarPills}</div>
+    <div style="display:flex;gap:8px">
+      <input id="dCaf" value="${e(dCaf)}" inputmode="numeric" placeholder="咖啡因 mg（可选）" style="${IS('flex:1')}">
+      <input id="dNote" value="${e(dNote)}" placeholder="备注" style="${IS('flex:1')}">
+      <button data-a="addDrink" style="${BS(C.p)}">记录</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+      ${statBox('饮品',drinks.length+'杯',C.p,C.pS)}
+      ${statBox('咖啡因',cafTotal?cafTotal+'mg':'—',cafTotal>300?C.w:C.g,cafTotal>300?C.wS:C.gS)}
+    </div>
+    <div style="margin-top:10px">${drinkList||empty('咖啡、奶茶、茶、饮料都可以记在这里。')}</div>
+  `);
   const ci=cycInfo();const t=today();const grp=ci.gs.find(g=>t>=g.s&&t<=g.e);
   let pst;
   if(grp||S.period.days[t]){const g=grp||{s:t};pst={txt:'经期第'+(diffD(g.s,t)+1)+'天',sub:'记得多休息、补铁补水 🌷',co:'#E18599'}}
@@ -472,12 +620,40 @@ function renderToday(){
     </div>
     <div style="margin-top:14px">${mList||empty('还没记录，今天吃的随手记一笔吧。')}</div>
   `);
-  return stats+chartCard+dateNav+wCard+waterCard+perCard+photoCard+mealCard
+  return `<div class="xb-today-grid">
+    <div>${dateNav+stats+wCard+waterCard+drinkCard+mealCard}</div>
+    <div>${drinkCalendar+perCard+photoCard}</div>
+    <div class="xb-today-wide">${chartCard}</div>
+  </div>`
 }
 
 // ═══════════════════════ TAB: FOOD ═══════════════════════
 function renderFood(){
   const sorted=[...S.pantry].sort((a,b)=>{const da=daysUntil(a.exp),db=daysUntil(b.exp);if(da==null&&db==null)return 0;if(da==null)return 1;if(db==null)return-1;return da-db});
+  const fridgeShelf=(title,items,tone,bg)=>`<div style="background:${bg};border-radius:16px;padding:12px;margin-bottom:10px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="font-size:13px;font-weight:700;color:${tone}">${title}</span><span style="font-size:11px;color:${C.muted}">${items.length} 件</span></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px">
+      ${items.map(x=>{const d=daysUntil(x.exp);return`<div style="background:${C.card};border:1px solid ${C.line};border-radius:14px;padding:10px;text-align:center;min-height:88px;display:flex;flex-direction:column;justify-content:center">
+        <div style="font-size:24px;margin-bottom:4px">${foodIcon(x.name)}</div>
+        <div style="font-size:13px;font-weight:600;color:${C.ink};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e(x.name)}</div>
+        <div style="font-size:11px;color:${C.faint};margin-top:2px">${x.qty!=null?e(x.qty+' '+x.unit):(d==null?'未标日期':d<0?'已过期':'剩 '+d+' 天')}</div>
+      </div>`}).join('')||`<div style="font-size:12px;color:${C.faint};padding:10px">这一层还是空的</div>`}
+    </div>
+  </div>`;
+  const urgent=sorted.filter(x=>{const d=daysUntil(x.exp);return d!=null&&d<=2});
+  const normal=sorted.filter(x=>{const d=daysUntil(x.exp);return d!=null&&d>2});
+  const noDate=sorted.filter(x=>daysUntil(x.exp)==null);
+  const fridgeCard=card('动态冰箱',`
+    <div style="border-radius:24px;background:linear-gradient(180deg,#F8FBFF,${C.pS});border:1px solid ${C.line};padding:14px;box-shadow:inset 0 0 0 4px rgba(255,255,255,.5)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div><div style="font-family:${SR};font-size:22px;font-weight:700;color:${C.ink}">我的小冰箱</div><div style="font-size:12px;color:${C.muted};margin-top:2px">按日期自动整理，快过期的会排在最上面。</div></div>
+        <div style="font-size:34px">🧊</div>
+      </div>
+      ${fridgeShelf('先吃这一层',urgent,C.w,C.wS)}
+      ${fridgeShelf('冷藏中',normal,C.g,C.gS)}
+      ${fridgeShelf('未标日期',noDate,C.p,C.pS)}
+    </div>
+  `);
   const pList=sorted.map(x=>{
     const d=daysUntil(x.exp);
     const badge=d==null?'':d<0?`<span style="font-size:11px;background:#FBE3E3;color:#C03;padding:2px 7px;border-radius:6px;margin-left:6px">已过期</span>`:d<=2?`<span style="font-size:11px;background:#FCE9D6;color:#C7723;padding:2px 7px;border-radius:6px;margin-left:6px">剩${d}天</span>`:d<=5?`<span style="font-size:11px;background:#FBF2D6;color:#A88A2E;padding:2px 7px;border-radius:6px;margin-left:6px">剩${d}天</span>`:`<span style="font-size:11px;background:${C.gS};color:${C.g};padding:2px 7px;border-radius:6px;margin-left:6px">剩${d}天</span>`;
@@ -513,7 +689,99 @@ function renderFood(){
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:2px">${wList||empty('想吃的随手记下来。')}</div>
   `);
-  return pCard+wCard
+  return fridgeCard+pCard+wCard
+}
+
+// ═══════════════════════ TAB: RECIPES ═══════════════════════
+const LOCAL_RECIPES=[
+['tomato-egg','番茄鸡蛋盖饭',15,'简单','快手 家常 热食',['番茄','鸡蛋','米饭','葱'],['番茄切块，鸡蛋打散','鸡蛋炒至凝固盛出','番茄炒出汁后倒回鸡蛋','盖在米饭上，撒葱花'],'番茄先加一点盐更容易出汁'],
+['chicken-salad','鸡胸肉沙拉碗',20,'简单','高蛋白 轻食 低脂',['鸡胸肉','生菜','黄瓜','番茄','玉米'],['鸡胸肉煎熟或水煮后切片','蔬菜洗净切块','加少量橄榄油、黑胡椒和盐','全部装碗拌匀'],'鸡胸肉提前腌 10 分钟会更嫩'],
+['oat-yogurt','酸奶燕麦杯',5,'简单','早餐 免开火 甜口',['酸奶','燕麦','香蕉','蓝莓','坚果'],['杯底铺燕麦','加入酸奶和水果','撒坚果，冷藏或直接吃'],'隔夜冷藏口感更像甜品'],
+['beef-potato','土豆炖牛肉',45,'中等','家常 热食 便当',['牛肉','土豆','胡萝卜','洋葱'],['牛肉焯水后沥干','洋葱炒香，加入牛肉翻炒','加水炖 25 分钟','加入土豆胡萝卜炖软调味'],'最后收汁会更下饭'],
+['salmon-rice','三文鱼饭团碗',18,'简单','高蛋白 便当 日式',['三文鱼','米饭','海苔','黄瓜','鸡蛋'],['三文鱼煎熟压碎','鸡蛋炒熟，黄瓜切丁','米饭铺底，放上配料','撒海苔碎，按口味加酱油'],'剩米饭也很适合做这一碗'],
+['tofu-miso','豆腐味噌汤',12,'简单','汤 低脂 暖胃',['豆腐','海带','味噌','葱','蘑菇'],['水煮开后放海带和蘑菇','加入豆腐小火煮','关火后化开味噌','撒葱花'],'味噌不要大火久煮，香气更好'],
+['shrimp-pasta','虾仁意面',25,'中等','西式 快手 晚餐',['虾仁','意面','蒜','番茄','洋葱'],['意面煮到八九分熟','蒜和洋葱炒香，加入虾仁','加番茄炒出汁','倒入意面拌匀调味'],'留一点煮面水能让酱汁更顺滑'],
+['kimchi-fried-rice','泡菜炒饭',12,'简单','快手 剩饭 辣口',['泡菜','米饭','鸡蛋','葱','火腿'],['鸡蛋炒散盛出','泡菜和火腿炒香','加入米饭炒散','倒回鸡蛋，撒葱花'],'冷饭更容易炒出粒粒分明'],
+['mushroom-risotto','蘑菇奶油烩饭',30,'中等','西式 浓郁 素食',['蘑菇','米饭','牛奶','洋葱','芝士'],['洋葱和蘑菇炒香','加入米饭和少量水','倒入牛奶小火煮稠','撒芝士和黑胡椒'],'用剩饭也可以快速做出烩饭感'],
+['banana-pancake','香蕉松饼',15,'简单','早餐 甜口 少油',['香蕉','鸡蛋','面粉','牛奶'],['香蕉压泥，加入鸡蛋牛奶','拌入面粉成糊','小火煎两面金黄'],'熟香蕉甜度更高，可以少放糖'],
+['veg-curry','蔬菜咖喱',28,'简单','一锅出 便当 素食',['土豆','胡萝卜','洋葱','咖喱','米饭'],['蔬菜切块炒香','加水煮到土豆变软','放咖喱块小火化开','配米饭食用'],'第二天的咖喱更入味'],
+['noodle-soup','青菜鸡蛋汤面',10,'简单','快手 热食 早餐',['面条','鸡蛋','青菜','葱'],['水开下面条','打入鸡蛋或煎蛋另放','加入青菜烫熟','按口味调盐、酱油和葱花'],'很适合冰箱快清空时救急'],
+['mapo-tofu','家常麻婆豆腐',18,'中等','家常 下饭 辣口',['豆腐','肉末','豆瓣酱','葱','米饭'],['豆腐切块焯水','肉末炒香，加豆瓣酱炒红油','加水和豆腐小火煮','勾芡撒葱花'],'不吃辣可用黄豆酱替代一部分豆瓣酱'],
+['garlic-broccoli','蒜蓉西兰花',10,'简单','蔬菜 低脂 快手',['西兰花','蒜'],['西兰花焯水至断生','蒜末炒香','倒入西兰花快炒调味'],'焯水加一点盐和油颜色更绿'],
+['teriyaki-chicken','照烧鸡腿饭',25,'中等','便当 日式 高蛋白',['鸡腿','米饭','西兰花','酱油','蜂蜜'],['鸡腿去骨煎至两面金黄','酱油蜂蜜和水调汁','倒入锅中收汁','切块配米饭和蔬菜'],'鸡皮朝下先煎会更香'],
+['lentil-soup','番茄扁豆汤',35,'简单','汤 素食 高纤维',['番茄','扁豆','胡萝卜','洋葱','芹菜'],['洋葱胡萝卜芹菜炒香','加入番茄和扁豆','加水煮到扁豆软','盐和黑胡椒调味'],'适合一次多煮，冷冻保存'],
+['avocado-toast','牛油果鸡蛋吐司',10,'简单','早餐 快手 轻食',['牛油果','鸡蛋','吐司','黑胡椒'],['吐司烤脆','牛油果压泥调味','煎蛋或水波蛋','铺在吐司上'],'加一点柠檬汁不容易氧化'],
+['cucumber-chicken','黄瓜鸡丝凉拌',20,'简单','凉菜 高蛋白 清爽',['鸡胸肉','黄瓜','蒜','芝麻酱'],['鸡胸肉煮熟撕丝','黄瓜切丝','调蒜泥芝麻酱汁','拌匀冷藏片刻'],'夏天很适合做成备餐'],
+['clam-tofu','蛤蜊豆腐汤',15,'简单','汤 鲜味 低脂',['蛤蜊','豆腐','姜','葱'],['蛤蜊吐沙洗净','姜片煮水后放蛤蜊','开口后加豆腐','撒葱花调味'],'蛤蜊本身有咸味，少放盐'],
+['fried-udon','蔬菜炒乌冬',12,'简单','快手 日式 一锅出',['乌冬面','卷心菜','胡萝卜','鸡蛋','洋葱'],['乌冬面焯散','蔬菜炒软','加入乌冬和鸡蛋','酱油或照烧汁调味'],'冰箱边角料都能放进去'],
+['pumpkin-congee','南瓜小米粥',35,'简单','早餐 暖胃 清淡',['南瓜','小米','水'],['小米洗净','南瓜切块','一起煮到软糯','按口味加少量糖或盐'],'适合早晨和胃口弱的时候'],
+['pork-cabbage','白菜猪肉炖粉条',35,'中等','家常 热食 一锅出',['白菜','猪肉','粉条','葱','姜'],['猪肉煸出油','放葱姜和白菜翻炒','加水和粉条炖软','调盐和酱油'],'粉条后放避免糊锅'],
+['eggplant-garlic','鱼香茄子简版',25,'中等','下饭 家常 素菜',['茄子','蒜','豆瓣酱','醋','糖'],['茄子切条煎软','蒜和豆瓣酱炒香','加醋糖酱油调汁','倒回茄子收汁'],'少油版可以先蒸茄子'],
+['tuna-wrap','金枪鱼蔬菜卷',8,'简单','快手 免开火 便当',['金枪鱼','生菜','黄瓜','玉米','饼皮'],['饼皮铺平','放生菜黄瓜和玉米','加入金枪鱼','卷紧切开'],'适合带去学校或办公室'],
+['bibimbap','韩式拌饭',25,'中等','一碗饭 蔬菜 辣口',['米饭','鸡蛋','菠菜','胡萝卜','牛肉','韩式辣酱'],['蔬菜分别炒熟或焯熟','牛肉炒熟','米饭铺底放配菜','加煎蛋和辣酱拌匀'],'没有牛肉也可以用鸡胸肉或豆腐']
+].map(r=>({id:r[0],name:r[1],time:r[2],level:r[3],tags:r[4].split(' '),ings:r[5],steps:r[6],tip:r[7],source:'local'}));
+function recipeAll(){return [...LOCAL_RECIPES,...(S.recipeCustom||[])]}
+function normFoodName(s){return String(s||'').toLowerCase().replace(/\s+/g,'').trim()}
+function foodTokens(){
+  const own=(S.pantry||[]).map(x=>x.name);
+  const want=(S.wishlist||[]).map(x=>x.name);
+  const wish=rWish.split(/[，,、;；\s]+/).filter(Boolean);
+  return {own,want:[...want,...wish],all:[...own,...want,...wish].map(normFoodName).filter(Boolean)}
+}
+function recipeScore(r,tokens,q){
+  const query=normFoodName(q);let score=0,matched=0;
+  for(const ing of r.ings){const ni=normFoodName(ing);if(tokens.all.some(t=>t&&(ni.includes(t)||t.includes(ni)))){score+=3;matched++}}
+  if(query){const hay=normFoodName([r.name,...r.tags,...r.ings].join(''));if(hay.includes(query))score+=8;else score-=4}
+  if(r.tags.includes('快手'))score+=1;
+  const missing=r.ings.filter(x=>!tokens.all.some(t=>normFoodName(x).includes(t)||t.includes(normFoodName(x))));
+  return {...r,score,matched,missing}
+}
+function renderRecipeCard(r){
+  const fav=(S.recipeFavs||[]).includes(r.id), note=(S.recipeNotes||{})[r.id]||'';
+  return `<div style="background:${C.card};border-radius:18px;padding:16px;margin-bottom:10px;box-shadow:0 1px 5px rgba(0,0,0,.05);border:1px solid ${r.matched?C.gS:'transparent'}">
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">
+      <div><div style="font-family:${SR};font-size:20px;font-weight:700;color:${C.ink}">${e(r.name)}</div><div style="font-size:12px;color:${C.muted};margin-top:4px">${r.time} 分钟 · ${e(r.level)} · ${r.matched?`匹配 ${r.matched}/${r.ings.length}`:'本地菜谱'}</div></div>
+      <button data-a="favRecipe" data-id="${e(r.id)}" style="width:38px;height:38px;border-radius:50%;border:none;background:${fav?C.w:C.pS};color:${fav?'#fff':C.p};font-size:18px;cursor:pointer">${fav?'★':'☆'}</button>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">${r.tags.map(t=>`<span style="font-size:11px;background:${C.wS};color:${C.w};padding:3px 8px;border-radius:999px">${e(t)}</span>`).join('')}</div>
+    <div style="font-size:13px;line-height:1.7;margin-top:12px"><b>食材：</b>${r.ings.map(x=>`<span style="color:${(r.missing||[]).includes(x)?C.muted:C.g}">${e(x)}</span>`).join(' · ')}</div>
+    ${r.missing&&r.missing.length?`<div style="font-size:12px;color:${C.faint};margin-top:4px">可能还缺：${r.missing.map(e).join('、')}</div>`:''}
+    <details style="margin-top:10px"><summary style="cursor:pointer;color:${C.p};font-size:13px;font-weight:600">查看做法</summary><ol style="margin:10px 0 0 18px;color:${C.ink};font-size:13px;line-height:1.85">${r.steps.map(s=>`<li>${e(s)}</li>`).join('')}</ol><div style="font-size:12px;color:${C.muted};margin-top:8px">小提示：${e(r.tip||'按自己的口味微调。')}</div></details>
+    <textarea data-rnote="${e(r.id)}" placeholder="给这道菜写备注，比如少油、下次加蘑菇…" rows="2" style="${IS('resize:vertical;line-height:1.6;margin-top:12px;font-size:13px')}">${e(note)}</textarea>
+    <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+      <button data-a="saveRecipeNote" data-id="${e(r.id)}" style="${BS(C.pS,'color:'+C.p+';font-size:12px;padding:8px 10px')}">保存备注</button>
+      <button data-a="copyRecipe" data-id="${e(r.id)}" style="${BS(C.gS,'color:'+C.g+';font-size:12px;padding:8px 10px')}">复制并改造</button>
+      <button data-a="addRecipeMeal" data-id="${e(r.id)}" style="${BS(C.line,'color:'+C.muted+';font-size:12px;padding:8px 10px')}">记到今天</button>
+      ${r.source==='custom'?`<button data-a="delRecipe" data-id="${e(r.id)}" style="${BS('#F7E0E4','color:#C75B70;font-size:12px;padding:8px 10px')}">删除改造版</button>`:''}
+    </div>
+  </div>`
+}
+function renderRecipes(){
+  const tokens=foodTokens();let scored=recipeAll().map(r=>recipeScore(r,tokens,rSearch));
+  if(rMode==='mine')scored=scored.filter(r=>r.matched>0);
+  if(rMode==='fav')scored=scored.filter(r=>(S.recipeFavs||[]).includes(r.id));
+  if(rMode==='quick')scored=scored.filter(r=>r.time<=15);
+  if(rMode==='links')scored=[];
+  scored=scored.sort((a,b)=>b.score-a.score||a.time-b.time);
+  const pantryTxt=(S.pantry||[]).map(x=>x.name).slice(0,10).join('、')||'还没有添加库存食材';
+  const hero=card('',`<div style="background:linear-gradient(135deg,${C.g},${C.p});border-radius:22px;padding:22px;color:#fff;margin:-4px -6px 14px"><div style="font-size:12px;letter-spacing:2px;opacity:.75;text-transform:uppercase">recipe finder</div><div style="font-family:${SR};font-size:31px;font-weight:700;margin-top:4px">今天吃什么</div><div style="font-size:14px;opacity:.84;margin-top:6px">搜索、推荐、收藏和备注都保存在本地。只有主动点 AI 灵感才调用 API。</div><div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">${pill(rMode==='mine',C.w,C.wS,'用现有食材','setRMode','mine')}${pill(rMode==='all',C.w,C.wS,'全部菜谱','setRMode','all')}${pill(rMode==='fav',C.w,C.wS,'收藏','setRMode','fav')}${pill(rMode==='quick',C.w,C.wS,'15分钟','setRMode','quick')}${pill(rMode==='links',C.w,C.wS,'链接记录','setRMode','links')}</div></div><div style="display:flex;gap:8px;flex-wrap:wrap">${statBox('库存食材',String((S.pantry||[]).length),C.g,C.gS)}${statBox('收藏菜谱',String((S.recipeFavs||[]).length),C.w,C.wS)}${statBox('我的改造',String((S.recipeCustom||[]).length),C.p,C.pS)}</div>`);
+  const controls=card('搜索和偏好',`<input id="rSearch" value="${e(rSearch)}" placeholder="搜索菜名、食材、标签，比如 鸡蛋 / 快手 / 低脂" style="${IS('margin-bottom:8px')}"><input id="rWish" value="${e(rWish)}" placeholder="想吃的食材：虾仁、土豆、番茄…" style="${IS()}"><div style="font-size:12px;color:${C.muted};line-height:1.7;margin-top:10px">已有：${e(pantryTxt)}</div>`);
+  const linkList=(S.recipeLinks||[]).map(x=>`<div style="padding:10px 0;border-top:1px solid ${C.line}"><div style="display:flex;gap:8px;align-items:flex-start"><div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600;color:${C.ink}">${e(x.title||'未命名食谱')}</div><a href="${e(x.url)}" target="_blank" style="font-size:12px;color:${C.p};word-break:break-all">${e(x.url)}</a>${x.note?`<div style="font-size:12px;color:${C.muted};margin-top:4px">${e(x.note)}</div>`:''}</div>${xbtn('delRecipeLink',x.id)}</div></div>`).join('');
+  const links=card('食谱链接/视频记录',`<input id="recipeLinkTitle" placeholder="标题，比如 小红书番茄牛腩" style="${IS('margin-bottom:8px')}"><input id="recipeLinkUrl" placeholder="粘贴链接" style="${IS('margin-bottom:8px')}"><textarea id="recipeLinkNote" placeholder="记录重点：调料、时间、想改的地方…" rows="3" style="${IS('resize:vertical;line-height:1.6')}"></textarea><button data-a="addRecipeLink" style="${BS(C.p,'width:100%;margin-top:8px')}">保存链接</button><div style="margin-top:12px">${linkList||empty('刷到做饭视频，就把链接和笔记丢在这里。')}</div>`);
+  const aiBox=card('AI 灵感（可选）',`<div style="font-size:12px;color:${C.muted};line-height:1.7;margin-bottom:10px">本页大部分功能都在本地运行。点击按钮才会根据现有食材调用 API 生成新菜谱。</div>${S.apiKey?`<button data-a="aiRecipe" style="${BS(C.p,'width:100%')}">根据现有食材生成新菜谱</button>`:`<div style="font-size:12px;color:${C.faint};text-align:center;padding:8px">先在 ⚙️ 设置里填入 API Key</div>`}${rAiIdea?`<div style="margin-top:12px;font-size:13px;line-height:1.85;white-space:pre-wrap;background:${C.pS};border-radius:12px;padding:12px">${e(rAiIdea)}</div>`:''}`);
+  const list=rMode==='links'?links:`<div class="xb-vocab-list">${scored.map(renderRecipeCard).join('')||empty('没有匹配菜谱。换个食材试试，或看全部菜谱。')}</div>`;
+  return `<div class="xb-card-grid"><div class="xb-wide">${hero}</div><div>${controls}${aiBox}${rMode==='links'?'':links}</div><div>${list}</div></div>`
+}
+async function aiRecipeIdea(){
+  if(!S.apiKey){alert('请先在设置里填入 API Key');return}
+  rAiIdea='生成中…';render();
+  const have=(S.pantry||[]).map(x=>x.name).join('、')||'无';
+  const want=[...(S.wishlist||[]).map(x=>x.name),rWish].filter(Boolean).join('、')||'无';
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':S.apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:700,messages:[{role:'user',content:`请根据这些已有食材：${have}；想吃/想买：${want}，给我生成一个适合日常做饭的菜谱。用中文，包含：菜名、用时、食材、步骤、可替换食材、保存/便当建议。不要客套。`}]})});
+    const json=await res.json();if(json.error)throw new Error(json.error.message);rAiIdea=json.content?.[0]?.text||'';
+  }catch(err){rAiIdea='生成失败：'+(err.message||err)}
+  render();
 }
 
 // ═══════════════════════ TAB: BILLS ═══════════════════════
@@ -903,45 +1171,52 @@ function renderVocabDetail(){
     bnc=entry.bnc||0;
   }
 
-  // 词形变化解析
-  const exchangeBadges=exchange?exchange.split('/').map(p=>{
-    const [k,v]=p.split(':');const labels={'p':'过去式','d':'过去分词','i':'现在分词','3':'第三人称单数','r':'比较级','t':'最高级','s':'复数','0':'原形','1':'变化'};
-    return v?`<span style="display:inline-block;font-size:11px;background:${C.gS};color:${C.g};padding:3px 8px;border-radius:6px;margin:2px 4px 2px 0">${labels[k]||k}: ${e(v)}</span>`:''
-  }).join(''):'';
+  const exchangeBadges=exchangeBadgesHtml(exchange);
+  const tagBadges=vocabTagBadges(tag);
+  const transLines=splitLines(translation,8);
+  const defLines=splitLines(definition,6);
+  const nextTxt=item.nextReview<=Date.now()?'今天':Math.ceil((item.nextReview-Date.now())/864e5)+'天后';
+  const mastery=Math.min(100,Math.round((item.box||1)/8*100));
 
-  // 标签解析
-  const tagMap={'zk':'中考','gk':'高考','cet4':'CET4','cet6':'CET6','ky':'考研','ielts':'雅思','toefl':'托福','gre':'GRE'};
-  const tagBadges=tag?tag.split(' ').map(t=>tagMap[t]?`<span style="font-size:11px;background:${C.wS};color:${C.w};padding:2px 8px;border-radius:5px;margin-right:4px">${tagMap[t]}</span>`:'').join(''):'';
-
-  return `<div style="position:fixed;inset:0;z-index:40;background:${C.bg};overflow-y:auto;animation:fp .25s ease">
-    <div style="max-width:560px;margin:0 auto;padding:22px 16px 100px">
+  return `<div style="position:fixed;inset:0;z-index:40;background:linear-gradient(145deg,${C.pS},${C.bg} 34%,${C.bg});overflow-y:auto;animation:fp .25s ease">
+    <div class="xb-shell" style="max-width:980px;margin:0 auto;padding:22px 16px 100px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
         <button data-a="closeVocabDetail" style="background:${C.card};border:1px solid ${C.line};border-radius:10px;width:38px;height:38px;font-size:18px;cursor:pointer">←</button>
         <button data-a="delVocab" data-id="${e(w)}" style="background:none;border:none;color:${C.faint};font-size:13px;cursor:pointer">移除</button>
       </div>
-      <div style="text-align:center;margin-bottom:24px">
-        <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:8px">
-          <h1 style="font-family:${SR};font-size:36px;font-weight:700;color:${C.ink}">${e(w)}</h1>
-          <button data-a="speak" data-v="${e(w)}" style="width:42px;height:42px;border-radius:50%;border:none;background:${C.pS};color:${C.p};font-size:20px;cursor:pointer">🔊</button>
+      <div style="background:linear-gradient(135deg,${C.p},${C.g});border-radius:26px;padding:28px 24px;color:#fff;margin-bottom:16px;box-shadow:0 18px 40px rgba(60,50,85,.16)">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:18px">
+          <div style="min-width:0">
+            <div style="font-size:12px;opacity:.72;margin-bottom:8px;letter-spacing:2px;text-transform:uppercase">word card</div>
+            <h1 style="font-family:${SR};font-size:clamp(36px,7vw,64px);line-height:1.02;font-weight:700;margin:0 0 10px;word-break:break-word">${e(w)}</h1>
+            ${phonetic?`<div style="font-size:18px;opacity:.86;font-family:${SR};letter-spacing:1px">/ ${e(phonetic)} /</div>`:''}
+          </div>
+          <button data-a="speak" data-v="${e(w)}" style="width:52px;height:52px;border-radius:50%;border:1px solid rgba(255,255,255,.42);background:rgba(255,255,255,.16);color:#fff;font-size:22px;cursor:pointer;flex-shrink:0">🔊</button>
         </div>
-        ${phonetic?`<div style="font-size:15px;color:${C.muted};font-family:${SR};letter-spacing:1px">/ ${e(phonetic)} /</div>`:''}
-        ${tagBadges?`<div style="margin-top:10px">${tagBadges}</div>`:''}
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:18px">${tagBadges||`<span style="font-size:12px;background:rgba(255,255,255,.16);padding:5px 10px;border-radius:999px">自定义词库</span>`}</div>
+        <div style="margin-top:18px;height:8px;background:rgba(255,255,255,.22);border-radius:999px;overflow:hidden"><div style="width:${mastery}%;height:100%;background:#fff;border-radius:999px"></div></div>
+        <div style="display:flex;justify-content:space-between;gap:12px;margin-top:8px;font-size:12px;opacity:.8"><span>${vocabLevelName(item.box)}</span><span>下次复习：${nextTxt}</span></div>
       </div>
 
-      ${entry===null?card('',`<div style="text-align:center;color:${C.faint};padding:20px">词典中未收录此词，你可以手动添加笔记。</div>`):
-       entry===undefined?card('',`<div style="text-align:center;color:${C.muted};padding:20px"><span class="spin">⏳</span> 查询中…</div>`):
-       `
-        ${translation?card('中文释义',`<div style="font-size:15px;line-height:1.9;white-space:pre-wrap">${e(translation)}</div>`):''}
-        ${definition&&definition!==translation?card('English Definition',`<div style="font-size:14px;line-height:1.8;font-family:${SR};white-space:pre-wrap">${e(definition)}</div>`):''}
-        ${exchangeBadges?card('词形变化',`<div>${exchangeBadges}</div>`):''}
-        ${collins||bnc?card('词频信息',`
-          <div style="display:flex;gap:14px;font-size:13px">
-            ${collins?`<div><span style="color:${C.muted}">柯林斯星级 </span><span style="color:${C.p};font-weight:600">${'★'.repeat(collins)}</span></div>`:''}
-            ${bnc?`<div><span style="color:${C.muted}">BNC词频 </span><span style="color:${C.p};font-weight:600">#${bnc}</span></div>`:''}
-          </div>
-        `):''}
-       `}
-
+      <div class="xb-detail-grid">
+        <div>
+          ${entry===null?card('',`<div style="text-align:center;color:${C.faint};padding:20px">词典中未收录此词，你可以手动添加笔记。</div>`):
+           entry===undefined?card('',`<div style="text-align:center;color:${C.muted};padding:20px"><span class="spin">⏳</span> 查询中…</div>`):
+           `
+            ${translation?card('中文释义',`<div style="display:grid;gap:8px">${transLines.map(x=>`<div style="font-size:15px;line-height:1.75;padding:10px 12px;border-radius:12px;background:${C.pS};color:${C.ink}">${e(cleanTransLine(x))}</div>`).join('')}</div>`):''}
+            ${definition&&definition!==translation?card('English Definition',`<div style="display:grid;gap:8px">${defLines.map(x=>`<div style="font-size:14px;line-height:1.75;font-family:${SR};padding:10px 12px;border-radius:12px;background:#FBFAFC">${e(x)}</div>`).join('')}</div>`):''}
+            ${exchangeBadges?card('词形变化',`<div>${exchangeBadges}</div>`):''}
+            ${card('常用搭配',`<div style="display:grid;gap:8px">${phraseCards(w)}</div>`)}
+            ${collins||bnc?card('词频信息',`
+              <div style="display:flex;gap:10px;flex-wrap:wrap">
+                ${collins?statBox('柯林斯星级','★'.repeat(collins),C.p,C.pS):''}
+                ${bnc?statBox('BNC 词频','#'+bnc,C.g,C.gS):''}
+                ${statBox('掌握等级',vocabLevelName(item.box),C.w,C.wS)}
+              </div>
+            `):''}
+           `}
+        </div>
+        <div>
       ${card('我的笔记',`
         <textarea id="vNote" placeholder="写下你对这个词的理解、用法、例句…" rows="4" style="${IS('resize:vertical;line-height:1.8')}">${e(note)}</textarea>
         <button data-a="saveVocabNote" data-id="${e(w)}" style="${BS(C.p,'width:100%;margin-top:8px')}">保存笔记</button>
@@ -971,6 +1246,8 @@ function renderVocabDetail(){
         ${statBox('掌握等级','Lv.'+item.box,item.box>=5?C.g:C.w,item.box>=5?C.gS:C.wS)}
         ${statBox('下次复习',item.nextReview<=Date.now()?'今天':Math.ceil((item.nextReview-Date.now())/864e5)+'天后',C.muted,C.line)}
       </div>`):''}
+        </div>
+      </div>
 
       <div style="margin-top:16px;text-align:center;font-size:11px;color:${C.faint}">
         添加于 ${new Date(item.added).toLocaleDateString('zh-CN')} · 复习 ${item.reviewCount} 次
@@ -1046,41 +1323,42 @@ function renderVocab(){
   const vNew=S.vocab.filter(v=>v.reviewCount===0).length;
   const vTotal=S.vocab.length;
 
-  // 今日复习卡
-  const reviewCard=vTotal>0?card('',`
-    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
-      <div>
-        <div style="font-family:${SR};font-size:17px;font-weight:600">今日复习</div>
-        <div style="font-size:13px;color:${C.muted};margin-top:3px">${vDue>0?`<span style="color:${C.w};font-weight:600">${vDue} 个词</span> 待复习`:'暂无待复习，继续学新词吧 🌿'}</div>
+  const masterPct=Math.round(vMastered/Math.max(1,vTotal)*100);
+  const learnPct=Math.round(vLearning/Math.max(1,vTotal)*100);
+  const reviewCard=card('',`
+    <div style="background:linear-gradient(135deg,${C.p},${C.g});border-radius:22px;padding:22px;color:#fff;margin:-4px -6px 14px">
+      <div style="display:flex;justify-content:space-between;gap:18px;align-items:flex-start;flex-wrap:wrap">
+        <div>
+          <div style="font-size:12px;letter-spacing:2px;opacity:.72;text-transform:uppercase">vocabulary studio</div>
+          <div style="font-family:${SR};font-size:32px;font-weight:700;margin-top:4px">今日背词</div>
+          <div style="font-size:14px;opacity:.82;margin-top:6px">${vDue>0?`还有 ${vDue} 个词待复习`:'今天没有待复习，适合加新词'}</div>
+        </div>
+        <div style="min-width:120px;text-align:right">
+          <div style="font-family:${SR};font-size:42px;font-weight:700">${vTotal}</div>
+          <div style="font-size:12px;opacity:.76">词库总量</div>
+        </div>
       </div>
-      ${vDue>0?`<div style="display:flex;gap:8px">
-        <button data-a="startReview" data-v="flip" style="${BS(C.p,'padding:10px 14px;font-size:13px')}">翻卡</button>
-        <button data-a="startReview" data-v="swipe" style="${BS(C.g,'padding:10px 14px;font-size:13px')}">划卡</button>
-        <button data-a="startReview" data-v="spell" style="${BS(C.w,'padding:10px 14px;font-size:13px')}">拼写</button>
-      </div>`:`<button data-a="startReview" data-v="flip" style="${BS(C.line,'padding:10px 14px;font-size:13px;color:'+C.muted)}" disabled>翻卡</button>`}
+      <div style="height:9px;background:rgba(255,255,255,.22);border-radius:999px;overflow:hidden;margin-top:18px;display:flex">
+        <div style="width:${masterPct}%;background:#fff"></div>
+        <div style="width:${learnPct}%;background:rgba(255,255,255,.55)"></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
+        ${vDue>0?`
+          <button data-a="startReview" data-v="flip" style="${BS('rgba(255,255,255,.95)','color:'+C.p+';padding:11px 16px;font-weight:700')}">翻卡复习</button>
+          <button data-a="startReview" data-v="swipe" style="${BS('rgba(255,255,255,.22)','border:1px solid rgba(255,255,255,.35);padding:11px 14px')}">划卡</button>
+          <button data-a="startReview" data-v="spell" style="${BS('rgba(255,255,255,.22)','border:1px solid rgba(255,255,255,.35);padding:11px 14px')}">拼写</button>
+        `:`<button data-a="startReview" data-v="flip" style="${BS('rgba(255,255,255,.25)','border:1px solid rgba(255,255,255,.35);padding:11px 16px')}" disabled>暂无待复习</button>`}
+        <button data-a="openStats" style="${BS('rgba(255,255,255,.22)','border:1px solid rgba(255,255,255,.35);padding:11px 14px')}">${streak>0?'🔥 '+streak+'天 ':' '}统计</button>
+        <button data-a="openBulk" style="${BS('rgba(255,255,255,.22)','border:1px solid rgba(255,255,255,.35);padding:11px 14px')}">批量导入</button>
+      </div>
     </div>
-    <div style="display:flex;gap:8px;margin-top:12px">
-      <button data-a="openStats" style="${BS(C.pS,'flex:1;color:'+C.p+';font-size:13px')}">📊 ${streak>0?'🔥'+streak+'天连打卡·':''}统计</button>
-      <button data-a="openBulk" style="${BS(C.gS,'flex:1;color:'+C.g+';font-size:13px')}">📥 批量导入</button>
-    </div>
-  ${vTotal>0?`<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
-      ${statBox('总收藏',String(vTotal),C.p,C.pS)}
+    <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px">
       ${statBox('已掌握',String(vMastered),C.g,C.gS)}
       ${statBox('学习中',String(vLearning),C.w,C.wS)}
+      ${statBox('待复习',String(vDue),C.p,C.pS)}
       ${statBox('未复习',String(vNew),C.muted,C.line)}
-    </div>`:''}
-    ${vTotal>0?`<div style="margin-top:12px"><div style="font-size:11px;color:${C.faint};margin-bottom:4px">掌握进度</div>
-      <div style="height:8px;background:${C.line};border-radius:4px;overflow:hidden;display:flex">
-        <div style="width:${Math.round(vMastered/Math.max(1,vTotal)*100)}%;background:${C.g};transition:width .5s"></div>
-        <div style="width:${Math.round(vLearning/Math.max(1,vTotal)*100)}%;background:${C.w};transition:width .5s"></div>
-      </div>
-      <div style="display:flex;gap:12px;font-size:11px;color:${C.faint};margin-top:4px">
-        <span><span style="color:${C.g}">■</span> 已掌握</span>
-        <span><span style="color:${C.w}">■</span> 学习中</span>
-        <span><span style="color:${C.line}">■</span> 未开始</span>
-      </div>
-    </div>`:''}
-  `):'';
+    </div>
+  `);
 
   const addCard=card('添加新词',`
     <div style="display:flex;gap:8px">
@@ -1110,21 +1388,26 @@ function renderVocab(){
 
   const items=list.map(v=>{
     const dueNow=v.nextReview<=Date.now();
-    return `<div data-a="openVocabDetail" data-v="${e(v.word)}" style="display:flex;align-items:center;gap:12px;padding:14px 16px;background:${C.card};border-radius:12px;margin-bottom:8px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.04)">
+    const pct=Math.min(100,Math.round((v.box||1)/8*100));
+    return `<div data-a="openVocabDetail" data-v="${e(v.word)}" style="display:flex;align-items:center;gap:12px;padding:15px 16px;background:${C.card};border-radius:16px;margin-bottom:8px;cursor:pointer;box-shadow:0 1px 5px rgba(0,0,0,.05);border:1px solid ${dueNow?C.wS:'transparent'}">
       <div style="flex:1;min-width:0">
-        <div style="font-family:${SR};font-size:17px;font-weight:600;color:${C.ink}">${e(v.word)}</div>
+        <div style="display:flex;align-items:center;gap:8px;min-width:0">
+          <div style="font-family:${SR};font-size:20px;font-weight:700;color:${C.ink};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e(v.word)}</div>
+          <span style="font-size:10px;background:${dueNow?C.wS:C.pS};color:${dueNow?C.w:C.p};border-radius:999px;padding:3px 7px;flex-shrink:0">${dueNow?'待复习':vocabLevelName(v.box)}</span>
+        </div>
         <div style="font-size:11px;color:${C.faint};margin-top:3px">
-          ${dueNow?`<span style="color:${C.w}">● 待复习</span>`:'掌握 lv.'+v.box}
+          Lv.${v.box||1} · 复习 ${v.reviewCount||0} 次
           ${S.vocabAi[v.word]&&S.vocabAi[v.word]!=='__loading__'?' · 🎴':''}
           ${S.vocabNotes[v.word]?' · 📝':''}
         </div>
+        <div style="height:5px;background:${C.line};border-radius:999px;overflow:hidden;margin-top:9px"><div style="height:100%;width:${pct}%;background:${dueNow?C.w:C.g}"></div></div>
       </div>
       <button data-a="speak" data-v="${e(v.word)}" data-stop="1" style="width:34px;height:34px;border-radius:50%;border:none;background:${C.pS};color:${C.p};font-size:15px;cursor:pointer;flex-shrink:0">🔊</button>
     </div>`
   }).join('');
 
   const emptyTxt=S.vocab.length===0?'词库还是空的，添加第一个词开始吧。':(search?'没有匹配的词。':'没有符合筛选的词。');
-  return reviewCard+addCard+dictTool+filterBar+searchBar+(items||empty(emptyTxt))
+  return `<div class="xb-card-grid"><div class="xb-wide">${reviewCard}</div><div>${addCard}${dictTool}</div><div>${filterBar}${searchBar}<div class="xb-vocab-list">${items||empty(emptyTxt)}</div></div></div>`
 }
 
 // ═══════════════════════ 统计 / 标签 / 导入 / 同义词 ═══════════════════════
@@ -1309,7 +1592,7 @@ function renderReview(){
   const progress=Math.round(reviewIdx/reviewQueue.length*100);
   if(_detailCache[item.word]===undefined)loadDetailEntry(item.word);
   const entry=_detailCache[item.word];
-  const trans=entry?.translation||'';
+  const trans=String(entry?.translation||'').replace(/\\n/g,'\n');
   const shortTrans=trans.split('\n')[0].replace(/^[a-z.]+\. /,'').slice(0,80);
 
   const bar=`<div style="position:absolute;top:0;left:0;right:0;height:4px;background:${C.line}"><div style="width:${progress}%;height:100%;background:${C.p};transition:width .4s"></div></div>`;
@@ -1495,6 +1778,22 @@ function renderSettings(){
     <span style="font-size:12px;color:${C.muted};width:30px;text-align:right">${val}</span>
   </div>`}
   const curPills=CURS.map(s=>pill((S.cur||'$')===s,C.p,C.pS,s,'setCur')).join('');
+  const labelInputs=Object.keys(TAB_LABELS).map(k=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+    <span style="font-size:12px;color:${C.muted};width:42px">${TAB_LABELS[k]}</span>
+    <input data-label="${k}" value="${e(lab(k))}" style="${IS('flex:1;padding:8px 10px;font-size:13px')}">
+  </div>`).join('');
+  const textCard=card('文字自定义',`
+    <div style="font-size:12px;color:${C.muted};line-height:1.7;margin-bottom:10px">这里改的是页面上最常出现的名字和底部标签。想好新名字后随时回来换。</div>
+    <input id="appNameIn" value="${e(S.appName||'')}" placeholder="页面主标题" style="${IS('margin-bottom:8px')}">
+    <input id="appKickerIn" value="${e(S.appKicker||'')}" placeholder="顶部小字，比如 daily log" style="${IS('margin-bottom:8px')}">
+    <input id="appTitleIn" value="${e(S.appTitle||'')}" placeholder="浏览器/添加到桌面的名字" style="${IS('margin-bottom:12px')}">
+    <div style="font-size:12px;color:${C.muted};margin-bottom:8px">底部标签</div>
+    ${labelInputs}
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button data-a="saveTextPrefs" style="${BS(C.p,'flex:1')}">保存文字</button>
+      <button data-a="resetTextPrefs" style="${BS(C.line,'color:'+C.muted)}">恢复默认</button>
+    </div>
+  `);
   // AI Key 卡片
   const keyCard=card('🤖 AI 食物识别 · API Key',`
     <p style="font-size:12px;color:${C.muted};margin:0 0 10px;line-height:1.7">填入你的 Anthropic API Key，拍照后点「AI识别并自动记录」，自动识别食物、分量、热量并填入今天的记录。<br>Key 只保存在本地设备，不会上传到任何服务器。</p>
@@ -1513,6 +1812,7 @@ function renderSettings(){
         <h2 style="font-family:${SR};font-size:20px">设置</h2>
         <button data-a="closeSett" style="background:none;border:none;color:${C.muted};font-size:22px;cursor:pointer">×</button>
       </div>
+      ${textCard}
       ${keyCard}
       ${card('预设主题',`<div style="display:flex;gap:10px;flex-wrap:wrap">${themePills}</div>`)}
       ${card('自定义强调色',`
@@ -1558,34 +1858,39 @@ function render(){
   C=resolveC();
   document.body.style.background=TAB==='me'?'#0B0A1E':C.bg;
   document.body.style.color=C.ink;
+  document.title=S.appTitle||S.appName||'小本';
+  const appleTitle=document.querySelector('meta[name="apple-mobile-web-app-title"]');
+  if(appleTitle)appleTitle.setAttribute('content',S.appTitle||S.appName||'小本');
   let main='';
   if(TAB==='me'){main=renderMe()}
   else{
     let body='';
     if(TAB==='today')body=renderToday();
     else if(TAB==='food')body=renderFood();
+    else if(TAB==='recipe')body=renderRecipes();
     else if(TAB==='bills')body=renderBills();
     else if(TAB==='list')body=renderList();
     else if(TAB==='vocab')body=renderVocab();
     else if(TAB==='journal')body=renderJournal();
     main=`
-      <div style="position:fixed;top:0;right:0;width:200px;height:200px;border-radius:50%;background:${C.pS};filter:blur(10px);opacity:.6;pointer-events:none;z-index:0"></div>
-      <div style="position:fixed;top:35%;left:-50px;width:160px;height:160px;border-radius:50%;background:${C.gS};filter:blur(10px);opacity:.5;pointer-events:none;z-index:0"></div>
-      <div style="max-width:560px;margin:0 auto;padding:22px 16px 100px;position:relative;z-index:1">
-        <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:16px">
+      <div class="xb-shell" style="max-width:760px;margin:0 auto;padding:22px 16px 100px;position:relative;z-index:1">
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:10px">
           <div>
-            <div style="font-size:11px;letter-spacing:3px;color:${C.faint};text-transform:uppercase">daily log</div>
-            <h1 style="font-family:${SR};font-size:26px;font-weight:600;margin-top:2px">饮食 & 体重小本</h1>
+            <div style="font-size:11px;letter-spacing:3px;color:${C.faint};text-transform:uppercase">${e(S.appKicker||'daily log')}</div>
+            <h1 style="font-family:${SR};font-size:26px;font-weight:600;margin-top:2px">${e(S.appName||'饮食 & 体重小本')}</h1>
           </div>
           <button data-a="openSett" style="width:40px;height:40px;border-radius:12px;border:1px solid ${C.line};background:${C.card};color:${C.ink};font-size:18px;cursor:pointer">⚙️</button>
+        </div>
+        <div class="xb-hand-note" style="background:${C.card};border-radius:18px;padding:10px 13px;margin-bottom:16px;color:${C.muted};font-size:13px;display:flex;align-items:center;gap:8px">
+          <span class="xb-sticker" style="font-size:19px">✍️</span><span>${e(tabMood())}</span>
         </div>
         ${body}
       </div>`
   }
   const isMe=TAB==='me';
-  const tabs=[['today','今日','🍃'],['food','食材','🧺'],['bills','账单','💰'],['list','清单','✓'],['vocab','单词','📖'],['journal','手帐','✍️'],['me','我','✦']];
-  const nav=`<div style="position:fixed;left:0;right:0;bottom:0;z-index:10;height:74px;display:flex;justify-content:center;background:${isMe?'rgba(11,10,30,.75)':C.card+'EE'};backdrop-filter:blur(12px);border-top:1px solid ${isMe?'rgba(255,255,255,.08)':C.line};padding-bottom:12px">
-    ${tabs.map(([id,label,icon])=>{const on=TAB===id;const col=isMe?(on?'#fff':'#7E79A8'):(on?C.p:C.faint);return`<button data-a="setTab" data-v="${id}" style="flex:1;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;color:${col};padding-top:10px"><span style="font-size:17px;opacity:${on?1:.55}">${icon}</span><span style="font-size:10px;font-weight:${on?600:400}">${label}</span></button>`}).join('')}
+  const tabs=[['today',lab('today'),'🍃'],['food',lab('food'),'🧺'],['recipe',lab('recipe'),'🍳'],['bills',lab('bills'),'💰'],['list',lab('list'),'✓'],['vocab',lab('vocab'),'📖'],['journal',lab('journal'),'✍️'],['me',lab('me'),'✦']];
+  const nav=`<div class="xb-dock" style="position:fixed;left:0;right:0;bottom:0;z-index:10;height:78px;display:flex;justify-content:center;background:${isMe?'rgba(11,10,30,.75)':C.card+'F2'};backdrop-filter:blur(14px);border-top:1px solid ${isMe?'rgba(255,255,255,.08)':C.line};padding:7px 4px 12px">
+    ${tabs.map(([id,label,icon])=>{const on=TAB===id;const col=isMe?(on?'#fff':'#7E79A8'):(on?C.p:C.faint);return`<button data-a="setTab" data-v="${id}" style="flex:1;background:${on?(isMe?'rgba(255,255,255,.12)':C.pS):'none'};border:none;border-radius:16px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:${col};min-width:0"><span class="${on?'xb-sticker':''}" style="font-size:17px;opacity:${on?1:.62}">${icon}</span><span style="font-size:10px;font-weight:${on?700:400};white-space:nowrap">${label}</span></button>`}).join('')}
   </div>`;
   const sett=showSett?renderSettings():'';
   const draft=aiDraft?renderAiDraft():'';
@@ -1630,9 +1935,22 @@ function bindEvents(){
     if(a==='prevDay'){DATE=shiftD(DATE,-1);wIn=getE().weight!=null?String(kg2disp(getE().weight)):'';render();return}
     if(a==='nextDay'){if(DATE<today()){DATE=shiftD(DATE,1);wIn=getE().weight!=null?String(kg2disp(getE().weight)):'';render()};return}
     if(a==='goToday'){DATE=today();wIn=getE().weight!=null?String(kg2disp(getE().weight)):'';render();return}
+    if(a==='goDate'){DATE=v;wIn=getE().weight!=null?String(kg2disp(getE().weight)):'';render();return}
     if(a==='saveW'){const raw=document.getElementById('wIn')?.value||'';const kg=disp2kg(raw);mutE(e=>{e.weight=kg});return}
     if(a==='addWater'){mutE(e=>{e.water=(e.water||0)+1});return}
     if(a==='subWater'){mutE(e=>{e.water=Math.max(0,(e.water||0)-1)});return}
+    if(a==='setDType'){dType=v;render();return}
+    if(a==='setDSugar'){dSugar=v;render();return}
+    if(a==='addDrink'){
+      const name=(document.getElementById('dName')?.value||'').trim()||dType;
+      const size=parseFloat(document.getElementById('dSize')?.value||'');
+      const caf=parseFloat(document.getElementById('dCaf')?.value||'');
+      const note=(document.getElementById('dNote')?.value||'').trim();
+      dName='';dSize='';dCaf='';dNote='';
+      mutE(e=>{e.drinks=[...(e.drinks||[]),{id:Date.now(),type:dType,name,size:isNaN(size)?null:size,sugar:dSugar,caf:isNaN(caf)?null:caf,note}]});
+      return
+    }
+    if(a==='delDrink'){mutE(e=>{e.drinks=(e.drinks||[]).filter(x=>String(x.id)!==id)});return}
     if(a==='setMType'){mType=v;render();return}
     if(a==='addMeal'){const t=(document.getElementById('mIn')?.value||'').trim();if(!t)return;mTxt='';mutE(e=>{e.meals=[...e.meals,{id:Date.now(),type:mType,text:t}]});return}
     if(a==='delMeal'){mutE(e=>{e.meals=e.meals.filter(m=>String(m.id)!==id)});return}
@@ -1649,6 +1967,15 @@ function bindEvents(){
     if(a==='delP'){save({...S,pantry:S.pantry.filter(x=>String(x.id)!==id)});return}
     if(a==='addW'){const t=(document.getElementById('wiIn')?.value||'').trim();if(!t)return;wiTxt='';save({...S,wishlist:[...S.wishlist,{id:Date.now(),name:t}]});return}
     if(a==='delW'){save({...S,wishlist:S.wishlist.filter(x=>String(x.id)!==id)});return}
+    if(a==='setRMode'){rMode=v;render();return}
+    if(a==='favRecipe'){const favs=S.recipeFavs||[];save({...S,recipeFavs:favs.includes(id)?favs.filter(x=>x!==id):[...favs,id]});return}
+    if(a==='saveRecipeNote'){const txt=document.querySelector(`[data-rnote="${CSS.escape(id)}"]`)?.value||'';save({...S,recipeNotes:{...(S.recipeNotes||{}),[id]:txt}});return}
+    if(a==='copyRecipe'){const base=recipeAll().find(r=>r.id===id);if(base){const name=prompt('给你的改造版起个名字：',base.name+' · 我的版本');if(name){const custom={...base,id:'custom-'+Date.now(),name:name.trim(),source:'custom',baseId:base.id};save({...S,recipeCustom:[custom,...(S.recipeCustom||[])],recipeFavs:[...new Set([...(S.recipeFavs||[]),custom.id])]})}}return}
+    if(a==='delRecipe'){if(confirm('删除这个改造版？原菜谱会保留。'))save({...S,recipeCustom:(S.recipeCustom||[]).filter(r=>r.id!==id),recipeFavs:(S.recipeFavs||[]).filter(x=>x!==id)});return}
+    if(a==='addRecipeMeal'){const r=recipeAll().find(x=>x.id===id);if(r){mutE(e=>{e.meals=[...(e.meals||[]),{id:Date.now(),type:'加餐',text:'🍳 '+r.name}]})};return}
+    if(a==='addRecipeLink'){const title=(document.getElementById('recipeLinkTitle')?.value||'').trim();const url=(document.getElementById('recipeLinkUrl')?.value||'').trim();const note=(document.getElementById('recipeLinkNote')?.value||'').trim();if(!url){alert('先粘贴链接。');return}save({...S,recipeLinks:[{id:Date.now(),title,url,note,date:today()},...(S.recipeLinks||[])]});return}
+    if(a==='delRecipeLink'){save({...S,recipeLinks:(S.recipeLinks||[]).filter(x=>String(x.id)!==id)});return}
+    if(a==='aiRecipe'){await aiRecipeIdea();return}
     if(a==='calcKey'){pressCalcKey(v);return}
     if(a==='addE'){const amt=calcAmount(document.getElementById('eAmt')?.value||'');if(isNaN(amt)||amt<=0)return;const note=(document.getElementById('eNote')?.value||'').trim();const dt=document.getElementById('eDate')?.value||today();let imgId=null;if(eImg){imgId=await storeImg(eImg)}const rec={id:Date.now(),amount:Math.round(amt*100)/100,cat:eCat,note,date:dt,tag:eTag||'',img:imgId};eAmt='';eNote='';eTag='';eImg='';save({...S,expenses:[rec,...S.expenses]});return}
     if(a==='setECat'){eCat=v;render();return}
@@ -1714,6 +2041,13 @@ function bindEvents(){
       save({...S,apiKey:k});
       return
     }
+    if(a==='saveTextPrefs'){
+      const labels={...TAB_LABELS};
+      document.querySelectorAll('[data-label]').forEach(inp=>{labels[inp.dataset.label]=(inp.value||TAB_LABELS[inp.dataset.label]||'').trim()});
+      save({...S,appName:(document.getElementById('appNameIn')?.value||'').trim()||'饮食 & 体重小本',appKicker:(document.getElementById('appKickerIn')?.value||'').trim()||'daily log',appTitle:(document.getElementById('appTitleIn')?.value||'').trim()||'小本',labels});
+      return
+    }
+    if(a==='resetTextPrefs'){save({...S,appName:'饮食 & 体重小本',appKicker:'daily log',appTitle:'小本',labels:{...TAB_LABELS}});return}
     if(a==='dictDl'){await downloadDict();return}
     if(a==='dictReset'){if(confirm('清除本机已缓存的词典并重新下载？'))await resetDict();return}
     if(a==='startReview'){startReview(v);return}
@@ -1771,12 +2105,18 @@ function bindEvents(){
     if(el.dataset&&el.dataset.a==='draftEdit'&&aiDraft){const i=+el.dataset.id,fld=el.dataset.f;if(aiDraft.items[i]){aiDraft.items[i][fld]=el.value}return}
     if(el.id==='wIn'){wIn=el.value}
     if(el.id==='mIn'){mTxt=el.value}
+    if(el.id==='dName'){dName=el.value}
+    if(el.id==='dSize'){dSize=el.value}
+    if(el.id==='dCaf'){dCaf=el.value}
+    if(el.id==='dNote'){dNote=el.value}
     if(el.id==='pN'){pN=el.value}
     if(el.id==='pQ'){pQ=el.value}
     if(el.id==='pE'){pE=el.value}
     if(el.id==='pU'){pU=el.value;render();return}
     if(el.id==='pUcustom'){pUcustom=el.value}
     if(el.id==='wiIn'){wiTxt=el.value}
+    if(el.id==='rSearch'){rSearch=el.value;clearTimeout(window._rs);window._rs=setTimeout(render,200);return}
+    if(el.id==='rWish'){rWish=el.value;clearTimeout(window._rw);window._rw=setTimeout(render,250);return}
     if(el.id==='nList'){nList=el.value}
     if(el.id==='eAmt'){eAmt=el.value}
     if(el.id==='eNote'){eNote=el.value}
